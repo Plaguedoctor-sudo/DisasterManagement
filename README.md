@@ -14,13 +14,14 @@
 
 ### Option 1: Direct APK Installation (Fastest)
 1. **Download the Signed Production APK:**
-   - Download the latest signed binary from the [Releases](https://github.com/) tab or direct link:  
-     👉 **[`DisasterManagement-v1.0.0-signed.apk`](./DisasterManagement-v1.0.0-signed.apk)** *(27 MB)*
+   - Download directly from GitHub Releases:  
+     👉 **[Download DisasterManagement-v1.0.0-signed.apk](https://github.com/Plaguedoctor-sudo/DisasterManagement/releases/download/v1.0.0/DisasterManagement-v1.0.0-signed.apk)** *(27 MB)*  
+   - Or browse the [v1.0.0 Release Page](https://github.com/Plaguedoctor-sudo/DisasterManagement/releases/tag/v1.0.0).
 2. **Transfer to Device:**
-   - Transfer via USB cable, SD card, Bluetooth, or local Wi-Fi share.
+   - Transfer via USB cable, SD card, Bluetooth, or local Wi-Fi share (or download directly in your mobile browser).
 3. **Install:**
-   - Tap the `.apk` file on your device.
-   - If prompted, allow *"Install unknown apps"* for your file manager.
+   - Tap the downloaded `.apk` file on your device.
+   - If prompted, allow *"Install unknown apps"* for your browser or file manager.
    - Tap **Install**. The tactical shield launcher icon will appear on your home screen.
 
 ### Option 2: Sideload via ADB (Developers & Field Ops)
@@ -129,7 +130,7 @@ Flash storage is partitioned into non-starving quotas:
 ### Compile & Build
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/DisasterManagement.git
+git clone https://github.com/Plaguedoctor-sudo/DisasterManagement.git
 cd DisasterManagement
 
 # Run unit tests
