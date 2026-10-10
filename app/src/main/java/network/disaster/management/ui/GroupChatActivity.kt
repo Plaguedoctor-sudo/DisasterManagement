@@ -276,17 +276,20 @@ class GroupChatActivity : AppCompatActivity() {
 
             // Encapsulate into 4KB invariant packet and route through TriPoolRouter (Pool A for emergency, Pool B for text)
             try {
-                val inputBytes = text.toByteArray(Charsets.UTF_8)
-                val x25519Pair = hybridEngine.generateX25519KeyPair()
-                val kyberPair = hybridEngine.generateKyber768KeyPair()
-                val (pqSecret, pqCiphertext) = hybridEngine.encapsulateKyber768(kyberPair.public)
-                val classicalSecret = hybridEngine.calculateX25519Agreement(x25519Pair.private, x25519Pair.public)
-                val salt = ByteArray(16).also { secureRandom.nextBytes(it) }
-                val derivedKey = hybridEngine.deriveHybridSharedKey(classicalSecret, pqSecret, salt)
-
+                val json = org.json.JSONObject().apply {
+                    put("id", msgId)
+                    put("groupId", groupId)
+                    put("senderName", senderId)
+                    put("content", text)
+                    put("type", if (isEmergency) MessageType.EMERGENCY.name else MessageType.TEXT.name)
+                    put("timestamp", now)
+                    put("isEmergency", isEmergency)
+                }.toString()
+                val inputBytes = json.toByteArray(Charsets.UTF_8)
+                val groupKey = currentGroup?.secretKey ?: ByteArray(32) { 0x01 }
                 val nonce = ByteArray(12).also { secureRandom.nextBytes(it) }
-                val aad = ByteArray(16).also { secureRandom.nextBytes(it) }
-                val (ciphertext, macTag) = hybridEngine.encryptPayloadTier1(derivedKey, nonce, aad, inputBytes)
+                val aad = "DISASTER-MESH-V1".toByteArray(Charsets.UTF_8)
+                val (ciphertext, macTag) = hybridEngine.encryptPayloadTier1(groupKey, nonce, aad, inputBytes)
 
                 val bundleId = ByteArray(32).also { secureRandom.nextBytes(it) }
                 val x25519PubBytes = ByteArray(32).also { secureRandom.nextBytes(it) }
@@ -303,7 +306,7 @@ class GroupChatActivity : AppCompatActivity() {
                     bundleId = bundleId,
                     rollingRecipientTag = localRecipientTag,
                     ephemeralX25519Pub = x25519PubBytes,
-                    mlKemCiphertext = pqCiphertext,
+                    mlKemCiphertext = ByteArray(1088),
                     nonce = nonce,
                     bucketLength = ciphertext.size,
                     encryptedBody = ciphertext,
@@ -315,6 +318,7 @@ class GroupChatActivity : AppCompatActivity() {
                 envelope.powNonce = solvedNonce
                 val finalPacket = EnvelopeFormat.serializeTier1(envelope)
                 router.processIngressPacket(finalPacket)
+                network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(finalPacket)
             } catch (_: Exception) {}
 
             withContext(Dispatchers.Main) {
@@ -343,6 +347,7 @@ class GroupChatActivity : AppCompatActivity() {
                 for (pkg in packages) {
                     shredder.saveFileChunk(pkg.fileId, pkg.chunkIndex, pkg.totalChunks, pkg.chunkData)
                     router.processIngressPacket(pkg.packet4k)
+                    network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(pkg.packet4k)
                 }
 
                 val type = when {
@@ -502,6 +507,7 @@ class GroupChatActivity : AppCompatActivity() {
                 for (pkg in packages) {
                     shredder.saveFileChunk(pkg.fileId, pkg.chunkIndex, pkg.totalChunks, pkg.chunkData)
                     router.processIngressPacket(pkg.packet4k)
+                    network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(pkg.packet4k)
                 }
 
                 val senderId = "Node-" + (Build.MODEL.takeLast(4).ifEmpty { "ME" })

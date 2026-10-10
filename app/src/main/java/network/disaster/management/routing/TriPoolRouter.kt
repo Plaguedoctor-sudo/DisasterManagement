@@ -52,7 +52,7 @@ class TriPoolRouter(
             System.arraycopy(raw, 0x08, bundleId, 0, minOf(8, raw.size - 8))
         }
 
-        return when {
+        val verdict = when {
             isEmergency -> {
                 val uniformPayload = if (raw.size < EnvelopeFormat.TIER_S_SIZE) raw.copyOf(EnvelopeFormat.TIER_S_SIZE) else raw
                 shredder.storeBundleWithSubkey(bundleId, "POOL_A", uniformPayload)
@@ -71,6 +71,125 @@ class TriPoolRouter(
                 }
             }
         }
+
+        if (verdict != RouteVerdict.DROPPED) {
+            tryIngressUnpack(raw, bundleId, isEmergency, isChunk)
+        }
+
+        return verdict
+    }
+
+    private fun tryIngressUnpack(raw: ByteArray, bundleId: ByteArray, isEmergency: Boolean, isChunk: Boolean) {
+        val db = shredder as? LowWearCryptoShredder ?: return
+        try {
+            if (isEmergency) {
+                val emEnv = EnvelopeFormat.deserializeEmergency(raw)
+                if (emEnv != null) {
+                    val content = String(emEnv.ciphertext, Charsets.UTF_8).trim()
+                    if (content.isNotEmpty()) {
+                        val hexId = "EMG_" + emEnv.shortBundleId.joinToString("") { "%02X".format(it) }
+                        val msg = network.disaster.management.model.FeedMessage(
+                            id = hexId,
+                            groupId = "GROUP_PUBLIC_BROADCAST",
+                            senderName = "EMERGENCY BEACON",
+                            content = content,
+                            type = network.disaster.management.model.MessageType.EMERGENCY,
+                            timestamp = System.currentTimeMillis(),
+                            isEmergency = true
+                        )
+                        db.insertMessage(msg)
+                    }
+                    return
+                }
+            }
+
+            if (isChunk) {
+                val bodyOffset = 1216
+                if (raw.size >= bodyOffset + 30) {
+                    val inner = raw.copyOfRange(bodyOffset, raw.size)
+                    val chunkEngine = network.disaster.management.storage.MediaChunkingEngine(null, db)
+                    val header = chunkEngine.parseChunkHeader(inner)
+                    if (header != null) {
+                        db.saveFileChunk(header.fileId, header.chunkIndex, header.totalChunks, header.data)
+                    }
+                }
+                return
+            }
+
+            val env = EnvelopeFormat.deserializeTier1(raw) ?: return
+            val engine = network.disaster.management.crypto.HybridEngine()
+            val candidateKeys = mutableListOf<ByteArray>()
+            candidateKeys.add(ByteArray(32) { 0x01 })
+            candidateKeys.add(ByteArray(32) { 0x02 })
+            candidateKeys.add(ByteArray(32) { 0x03 })
+            for (group in db.getAllGroups()) {
+                candidateKeys.add(group.secretKey)
+            }
+
+            val candidateAads = listOf(
+                "DISASTER-MESH-V1".toByteArray(Charsets.UTF_8),
+                "BUNDLE-AUTH-DATA".toByteArray(Charsets.UTF_8),
+                ByteArray(16)
+            )
+
+            var decryptedBytes: ByteArray? = null
+            for (key in candidateKeys) {
+                for (aad in candidateAads) {
+                    val res = engine.decryptPayloadTier1(key, env.nonce, aad, env.encryptedBody, env.macTag)
+                    if (res != null) {
+                        decryptedBytes = res
+                        break
+                    }
+                }
+                if (decryptedBytes != null) break
+            }
+
+            if (decryptedBytes != null) {
+                val text = String(decryptedBytes, Charsets.UTF_8).trim()
+                if (text.startsWith("{") && text.endsWith("}")) {
+                    try {
+                        val json = org.json.JSONObject(text)
+                        val msg = network.disaster.management.model.FeedMessage(
+                            id = json.getString("id"),
+                            groupId = json.optString("groupId", "GROUP_PUBLIC_BROADCAST"),
+                            senderName = json.optString("senderName", "Mesh Peer"),
+                            content = json.getString("content"),
+                            type = try { network.disaster.management.model.MessageType.valueOf(json.optString("type", "TEXT")) } catch (_: Exception) { network.disaster.management.model.MessageType.TEXT },
+                            fileName = if (json.has("fileName")) json.getString("fileName") else null,
+                            fileSize = json.optLong("fileSize", 0L),
+                            mimeType = if (json.has("mimeType")) json.getString("mimeType") else null,
+                            timestamp = json.optLong("timestamp", System.currentTimeMillis()),
+                            isEmergency = json.optBoolean("isEmergency", false)
+                        )
+                        db.insertMessage(msg)
+                    } catch (_: Exception) {
+                        val hexId = "MSG_" + bundleId.take(8).joinToString("") { "%02X".format(it) }
+                        val msg = network.disaster.management.model.FeedMessage(
+                            id = hexId,
+                            groupId = "GROUP_PUBLIC_BROADCAST",
+                            senderName = "Mesh Peer",
+                            content = text,
+                            type = network.disaster.management.model.MessageType.TEXT,
+                            timestamp = env.creationEpoch,
+                            isEmergency = false
+                        )
+                        db.insertMessage(msg)
+                    }
+                } else if (text.isNotBlank()) {
+                    val hexId = "MSG_" + bundleId.take(8).joinToString("") { "%02X".format(it) }
+                    val msg = network.disaster.management.model.FeedMessage(
+                        id = hexId,
+                        groupId = "GROUP_PUBLIC_BROADCAST",
+                        senderName = "Mesh Peer",
+                        content = text,
+                        type = network.disaster.management.model.MessageType.TEXT,
+                        timestamp = env.creationEpoch,
+                        isEmergency = false
+                    )
+                    db.insertMessage(msg)
+                }
+            }
+        } catch (_: Exception) {}
     }
 
 

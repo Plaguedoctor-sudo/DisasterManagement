@@ -66,6 +66,7 @@ flowchart TD
     end
 
     subgraph Transports["Multi-Modal Physical Layer"]
+        WiFi["Wi-Fi Hotspot Mesh (UDP 42424 / TCP 42425)"]
         BLE["BLE Mesh (256-bit Bloom Sync + CoC)"]
         Acoustic["Acoustic Modem (18.5kHz 4FSK Ultrasonic)"]
         Optical["Optical LT Fountain (CameraX Live QR Droplets)"]
@@ -92,6 +93,7 @@ Flash storage is partitioned into non-starving quotas:
 * **Low-Wear Subkey Shredding:** Deleting a bundle zeroes only its 32-byte ephemeral key, rendering payloads unrecoverable without causing flash wear.
 
 ### 4. Multi-Modal Physical Transports
+* **Wi-Fi Hotspot & LAN Mesh Transceiver:** High-speed off-grid peer-to-peer sync over local Wi-Fi and mobile hotspots. Uses UDP discovery beacons (Port 42424) + direct gateway probing and persistent TCP sockets (Port 42425) with 256-bit Bloom filter epidemic sync and instant message push.
 * **BLE Mesh Transceiver:** Duty-cycled background scanning with L2CAP Connection-Oriented Channels and **256-bit Bloom Filter summaries** for ultra-efficient epidemic sync.
 * **Near-Ultrasound Acoustic Modem:** 4FSK chirping over speaker/microphone across 18.5 kHz – 19.5 kHz for short-range sound communication.
 * **Optical LT Fountain Transceiver:** Air-gapped visual data stream beaming animated Luby Transform QR droplets at 8 FPS, reconstructed via real-time CameraX peeling decoder.

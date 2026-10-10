@@ -2,9 +2,11 @@ package network.disaster.management
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.*
@@ -12,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -74,6 +77,17 @@ class MainActivity : AppCompatActivity() {
         uri?.let { onMediaFileSelected(it) }
     }
 
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val allGranted = results.values.all { it }
+        updatePermissionBanner(!allGranted)
+        if (allGranted || hasCriticalPermissions()) {
+            startMeshServicesSafely()
+            Toast.makeText(this, "Mesh active: Ready for Wi-Fi hotspot & BLE communication", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -85,20 +99,18 @@ class MainActivity : AppCompatActivity() {
         router = TriPoolRouter(shredder, localRecipientTag)
         mediaChunker = MediaChunkingEngine(this, shredder)
         batteryManager = OemBatteryManager(this)
-        batteryManager.openVendorPowerWhitelists()
         gpsHelper = GpsBeaconHelper(this)
 
-        requestInitialPermissions()
-
+        setupPermissionBanner()
         setupTabs()
         setupBroadcastFeed()
         setupGroupsTab()
         setupMediaTab()
         setupRelaysTab()
 
-        MeshForegroundService.start(this)
-        findViewById<TextView>(R.id.tvStatus).text = "Status: Mesh Active | Tri-Pool Quotas Enforced"
+        findViewById<TextView>(R.id.tvStatus).text = "Status: Initializing Mesh Transceivers..."
 
+        checkAndRequestAllPermissions()
         startPeriodicRefresh()
     }
 
@@ -263,18 +275,20 @@ class MainActivity : AppCompatActivity() {
             shredder.insertMessage(msg)
 
             try {
-                val inputBytes = text.toByteArray(Charsets.UTF_8)
-                val x25519Pair = hybridEngine.generateX25519KeyPair()
-                val kyberPair = hybridEngine.generateKyber768KeyPair()
-
-                val (pqSecret, pqCiphertext) = hybridEngine.encapsulateKyber768(kyberPair.public)
-                val classicalSecret = hybridEngine.calculateX25519Agreement(x25519Pair.private, x25519Pair.public)
-                val salt = ByteArray(16).also { secureRandom.nextBytes(it) }
-                val derivedKey = hybridEngine.deriveHybridSharedKey(classicalSecret, pqSecret, salt)
-
+                val json = org.json.JSONObject().apply {
+                    put("id", msgId)
+                    put("groupId", "GROUP_PUBLIC_BROADCAST")
+                    put("senderName", senderId)
+                    put("content", text)
+                    put("type", MessageType.TEXT.name)
+                    put("timestamp", now)
+                    put("isEmergency", false)
+                }.toString()
+                val inputBytes = json.toByteArray(Charsets.UTF_8)
+                val groupKey = ByteArray(32) { 0x01 } // Shared Public Broadcast Group Key
                 val nonce = ByteArray(12).also { secureRandom.nextBytes(it) }
-                val aad = ByteArray(16).also { secureRandom.nextBytes(it) }
-                val (ciphertext, macTag) = hybridEngine.encryptPayloadTier1(derivedKey, nonce, aad, inputBytes)
+                val aad = "DISASTER-MESH-V1".toByteArray(Charsets.UTF_8)
+                val (ciphertext, macTag) = hybridEngine.encryptPayloadTier1(groupKey, nonce, aad, inputBytes)
 
                 val bundleId = ByteArray(32).also { secureRandom.nextBytes(it) }
                 val x25519PubBytes = ByteArray(32).also { secureRandom.nextBytes(it) }
@@ -289,7 +303,7 @@ class MainActivity : AppCompatActivity() {
                     bundleId = bundleId,
                     rollingRecipientTag = localRecipientTag,
                     ephemeralX25519Pub = x25519PubBytes,
-                    mlKemCiphertext = pqCiphertext,
+                    mlKemCiphertext = ByteArray(1088),
                     nonce = nonce,
                     bucketLength = ciphertext.size,
                     encryptedBody = ciphertext,
@@ -301,6 +315,7 @@ class MainActivity : AppCompatActivity() {
                 val finalSerialized = EnvelopeFormat.serializeTier1(envelope)
 
                 val verdict = router.processIngressPacket(finalSerialized)
+                network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(finalSerialized)
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Report Broadcasted | $verdict (Pool B)", Toast.LENGTH_SHORT).show()
@@ -344,6 +359,9 @@ class MainActivity : AppCompatActivity() {
             // Store in Pool A (Emergency 50MB quota)
             val verdict = router.processIngressPacket(serialized)
 
+            // Broadcast immediately to connected Wi-Fi hotspot peers
+            network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(serialized)
+
             // Save message into local feed
             val msg = FeedMessage(
                 id = UUID.randomUUID().toString(),
@@ -362,7 +380,7 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 Toast.makeText(
                     this@MainActivity,
-                    "Distress Alert Broadcasted ($coordStr) via BLE & Near-Ultrasound FSK ($verdict)",
+                    "Distress Alert Broadcasted ($coordStr) via Wi-Fi, BLE & Ultrasonic ($verdict)",
                     Toast.LENGTH_LONG
                 ).show()
                 loadBroadcastMessages()
@@ -549,6 +567,7 @@ class MainActivity : AppCompatActivity() {
                 packages.forEachIndexed { index, pkg ->
                     shredder.saveFileChunk(pkg.fileId, pkg.chunkIndex, pkg.totalChunks, pkg.chunkData)
                     router.processIngressPacket(pkg.packet4k)
+                    network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(pkg.packet4k)
                     withContext(Dispatchers.Main) {
                         pb.progress = index + 1
                     }
@@ -597,6 +616,61 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupRelaysTab() {
+        val swWifiMesh = findViewById<Switch>(R.id.swWifiMesh)
+        val btnScanWifiHotspot = findViewById<Button>(R.id.btnScanWifiHotspot)
+        val btnDirectIpConnect = findViewById<Button>(R.id.btnDirectIpConnect)
+
+        swWifiMesh?.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                network.disaster.management.transport.WifiMeshSupervisor.shared?.startMesh()
+                Toast.makeText(this, "Wi-Fi Hotspot Mesh Enabled", Toast.LENGTH_SHORT).show()
+            } else {
+                network.disaster.management.transport.WifiMeshSupervisor.shared?.stopMesh()
+                Toast.makeText(this, "Wi-Fi Hotspot Mesh Disabled", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        btnScanWifiHotspot?.setOnClickListener {
+            network.disaster.management.transport.WifiMeshSupervisor.shared?.triggerManualHotspotScan()
+            Toast.makeText(this, "Broadcasting beacons & probing hotspot peers...", Toast.LENGTH_SHORT).show()
+        }
+
+        btnDirectIpConnect?.setOnClickListener {
+            val etIp = EditText(this).apply {
+                hint = "e.g. 192.168.43.1 or peer IP"
+                setPadding(32, 32, 32, 32)
+                setTextColor(0xFFFFFFFF.toInt())
+                setHintTextColor(0xFF888888.toInt())
+            }
+            AlertDialog.Builder(this)
+                .setTitle("Direct Peer IP Connection")
+                .setMessage("Enter the IP address of the second phone on the hotspot:")
+                .setView(etIp)
+                .setPositiveButton("Connect") { _, _ ->
+                    val ip = etIp.text.toString().trim()
+                    if (ip.isNotEmpty()) {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            try {
+                                val addr = java.net.InetAddress.getByName(ip)
+                                network.disaster.management.transport.WifiMeshSupervisor.shared?.triggerManualHotspotScan()
+                                val socket = java.net.Socket()
+                                socket.connect(java.net.InetSocketAddress(addr, network.disaster.management.transport.WifiMeshSupervisor.SYNC_TCP_PORT), 3000)
+                                socket.close()
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(this@MainActivity, "Connected to peer $ip!", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(this@MainActivity, "Could not reach $ip: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
         val swBle = findViewById<Switch>(R.id.swBle)
         val swMic = findViewById<Switch>(R.id.swMic)
         val swCam = findViewById<Switch>(R.id.swCam)
@@ -753,11 +827,33 @@ class MainActivity : AppCompatActivity() {
     private fun startPeriodicRefresh() {
         lifecycleScope.launch(Dispatchers.IO) {
             while (isActive) {
-                delay(3000)
+                delay(2500)
                 val messages = shredder.getMessages(null)
+                val wifiPeers = network.disaster.management.transport.WifiMeshSupervisor.shared?.getActivePeerCount() ?: 0
+                val peerIps = network.disaster.management.transport.WifiMeshSupervisor.shared?.getActivePeerIps() ?: emptyList()
+                val myIps = network.disaster.management.transport.WifiMeshSupervisor.shared?.getLocalIps() ?: emptyList()
+
                 withContext(Dispatchers.Main) {
                     broadcastAdapter.updateMessages(messages)
                     updateStorageQuotaDisplay()
+
+                    val statusMsg = if (wifiPeers > 0) {
+                        "Status: Wi-Fi Hotspot Active ($wifiPeers Peer${if (wifiPeers > 1) "s" else ""}: ${peerIps.joinToString(", ")}) | Quotas Enforced"
+                    } else if (myIps.isNotEmpty()) {
+                        "Status: Wi-Fi Mesh Ready (${myIps.first()}) | BLE Active | Searching Hotspot..."
+                    } else {
+                        "Status: Mesh Active (BLE & Acoustic) | Tri-Pool Quotas Enforced"
+                    }
+                    findViewById<TextView>(R.id.tvStatus)?.text = statusMsg
+
+                    val wifiDetails = if (wifiPeers > 0) {
+                        "Connected Peers: ${peerIps.joinToString(", ")} | Port: 42425"
+                    } else if (myIps.isNotEmpty()) {
+                        "Listening on: ${myIps.joinToString(", ")}:42425 | Searching hotspot..."
+                    } else {
+                        "Wi-Fi Disconnected | Connect to Wi-Fi or Hotspot"
+                    }
+                    findViewById<TextView>(R.id.tvWifiMeshDetails)?.text = wifiDetails
                 }
             }
         }
@@ -765,19 +861,107 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        val missing = getMissingPermissions()
+        if (missing.isEmpty()) {
+            updatePermissionBanner(false)
+            startMeshServicesSafely()
+        } else {
+            updatePermissionBanner(true)
+        }
         loadBroadcastMessages()
         loadGroups()
         updateStorageQuotaDisplay()
     }
 
-    private fun requestInitialPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                100
-            )
+    private fun setupPermissionBanner() {
+        findViewById<Button>(R.id.btnGrantPermissions)?.setOnClickListener {
+            permissionLauncher.launch(getRequiredPermissions())
         }
+
+        findViewById<Button>(R.id.btnOpenAppSettings)?.setOnClickListener {
+            try {
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", packageName, null)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(intent)
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun updatePermissionBanner(show: Boolean) {
+        findViewById<View>(R.id.cardPermissionBanner)?.visibility = if (show) View.VISIBLE else View.GONE
+    }
+
+    private fun checkAndRequestAllPermissions() {
+        val missing = getMissingPermissions()
+        if (missing.isEmpty()) {
+            updatePermissionBanner(false)
+            startMeshServicesSafely()
+        } else {
+            updatePermissionBanner(true)
+            permissionLauncher.launch(missing.toTypedArray())
+        }
+    }
+
+    private fun hasCriticalPermissions(): Boolean {
+        val fineLoc = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarseLoc = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        return fineLoc || coarseLoc
+    }
+
+    private fun getMissingPermissions(): List<String> {
+        val perms = mutableListOf<String>()
+        perms.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        perms.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            perms.add(Manifest.permission.POST_NOTIFICATIONS)
+            perms.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            perms.add(Manifest.permission.BLUETOOTH_SCAN)
+            perms.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+            perms.add(Manifest.permission.BLUETOOTH_CONNECT)
+        } else {
+            perms.add(Manifest.permission.BLUETOOTH)
+            perms.add(Manifest.permission.BLUETOOTH_ADMIN)
+        }
+        perms.add(Manifest.permission.RECORD_AUDIO)
+        perms.add(Manifest.permission.CAMERA)
+
+        return perms.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun getRequiredPermissions(): Array<String> {
+        val perms = mutableListOf<String>()
+        perms.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        perms.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            perms.add(Manifest.permission.POST_NOTIFICATIONS)
+            perms.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            perms.add(Manifest.permission.BLUETOOTH_SCAN)
+            perms.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+            perms.add(Manifest.permission.BLUETOOTH_CONNECT)
+        } else {
+            perms.add(Manifest.permission.BLUETOOTH)
+            perms.add(Manifest.permission.BLUETOOTH_ADMIN)
+        }
+        perms.add(Manifest.permission.RECORD_AUDIO)
+        perms.add(Manifest.permission.CAMERA)
+        return perms.toTypedArray()
+    }
+
+    private var meshServicesStarted = false
+    private fun startMeshServicesSafely() {
+        if (meshServicesStarted) return
+        meshServicesStarted = true
+        try {
+            MeshForegroundService.start(this)
+        } catch (_: Throwable) {}
     }
 
     override fun onDestroy() {

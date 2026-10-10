@@ -20,8 +20,13 @@ class TransportCapabilityManager(private val context: Context) {
     }
 
     fun isAcousticAvailable(): Boolean = hasPermission(Manifest.permission.RECORD_AUDIO)
-
+ 
     fun isOpticalAvailable(): Boolean = hasPermission(Manifest.permission.CAMERA)
+
+    fun isWifiAvailable(): Boolean {
+        return hasPermission(Manifest.permission.ACCESS_NETWORK_STATE) &&
+               hasPermission(Manifest.permission.ACCESS_WIFI_STATE)
+    }
 
     private fun hasPermission(permission: String): Boolean {
         return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED

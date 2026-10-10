@@ -52,15 +52,18 @@ class BleMeshSupervisor(
 
     @SuppressLint("MissingPermission")
     fun startMesh() {
-        if (isRunning || bluetoothAdapter == null || !bluetoothAdapter.isEnabled) return
-        isRunning = true
+        if (isRunning || bluetoothAdapter == null) return
+        try {
+            if (!bluetoothAdapter.isEnabled) return
+            isRunning = true
 
-        advertiser = bluetoothAdapter.bluetoothLeAdvertiser
-        scanner = bluetoothAdapter.bluetoothLeScanner
+            advertiser = try { bluetoothAdapter.bluetoothLeAdvertiser } catch (_: Throwable) { null }
+            scanner = try { bluetoothAdapter.bluetoothLeScanner } catch (_: Throwable) { null }
 
-        startAdvertising()
-        startServerListener()
-        startDutyCycledScanning()
+            startAdvertising()
+            startServerListener()
+            startDutyCycledScanning()
+        } catch (_: Throwable) {}
     }
 
     @SuppressLint("MissingPermission")
@@ -70,32 +73,34 @@ class BleMeshSupervisor(
 
         try {
             advertiser?.stopAdvertising(advertiseCallback)
-        } catch (_: Exception) {}
+        } catch (_: Throwable) {}
 
         try {
             scanner?.stopScan(scanCallback)
-        } catch (_: Exception) {}
+        } catch (_: Throwable) {}
 
         try {
             serverSocket?.close()
-        } catch (_: Exception) {}
+        } catch (_: Throwable) {}
     }
 
     @SuppressLint("MissingPermission")
     private fun startAdvertising() {
-        val adv = advertiser ?: return
-        val settings = AdvertiseSettings.Builder()
-            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
-            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
-            .setConnectable(true)
-            .build()
+        try {
+            val adv = advertiser ?: return
+            val settings = AdvertiseSettings.Builder()
+                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
+                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
+                .setConnectable(true)
+                .build()
 
-        val data = AdvertiseData.Builder()
-            .setIncludeDeviceName(false)
-            .addServiceUuid(ParcelUuid(MESH_SERVICE_UUID))
-            .build()
+            val data = AdvertiseData.Builder()
+                .setIncludeDeviceName(false)
+                .addServiceUuid(ParcelUuid(MESH_SERVICE_UUID))
+                .build()
 
-        adv.startAdvertising(settings, data, advertiseCallback)
+            adv.startAdvertising(settings, data, advertiseCallback)
+        } catch (_: Throwable) {}
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {
@@ -107,21 +112,21 @@ class BleMeshSupervisor(
     private fun startDutyCycledScanning() {
         scope.launch {
             while (isActive && isRunning) {
-                val sc = scanner
-                if (sc != null && bluetoothAdapter?.isEnabled == true) {
-                    val filter = ScanFilter.Builder()
-                        .setServiceUuid(ParcelUuid(MESH_SERVICE_UUID))
-                        .build()
-                    val settings = ScanSettings.Builder()
-                        .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
-                        .build()
+                try {
+                    val sc = scanner
+                    if (sc != null && bluetoothAdapter?.isEnabled == true) {
+                        val filter = ScanFilter.Builder()
+                            .setServiceUuid(ParcelUuid(MESH_SERVICE_UUID))
+                            .build()
+                        val settings = ScanSettings.Builder()
+                            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+                            .build()
 
-                    try {
                         sc.startScan(listOf(filter), settings, scanCallback)
                         delay(6000L) // Scan for 6 seconds
-                        sc.stopScan(scanCallback)
-                    } catch (_: Exception) {}
-                }
+                        try { sc.stopScan(scanCallback) } catch (_: Throwable) {}
+                    }
+                } catch (_: Throwable) {}
                 delay(20000L) // Sleep for 20 seconds to preserve battery
             }
         }
@@ -137,7 +142,7 @@ class BleMeshSupervisor(
 
     @SuppressLint("MissingPermission")
     private fun handleDiscoveredPeer(device: BluetoothDevice) {
-        val address = device.address ?: return
+        val address = try { device.address } catch (_: Throwable) { null } ?: return
         val lastSeen = peerCooldownMap[address] ?: 0L
         if (System.currentTimeMillis() - lastSeen < 60000L) {
             return // Skip devices contacted within last 60 seconds

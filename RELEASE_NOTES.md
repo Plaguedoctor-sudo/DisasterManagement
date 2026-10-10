@@ -14,7 +14,7 @@ Initial production release of **DisasterManagement**, an off-grid civil protecti
 * **Verified Signature Scheme:** APK Signature Scheme V3 (Production Keystore)
 * **SHA-256 Checksum:**
   ```text
-  bffb086d4d3d4430e117ded9973fa08044027924b64476ee1444dde6486a5d98
+  8620b8d51c0bab71872b1a09b6777119e54d87de3473561fdb311aa31fe21059
   ```
 
 ---
@@ -26,10 +26,12 @@ Initial production release of **DisasterManagement**, an off-grid civil protecti
 * **Native C11 `mlock()` Memory Pinning:** Prevents cryptographic keys and plaintext buffers from being swapped to flash.
 * **Anti-Starvation Storage Isolation:** Hard quota partitioning for Pool A (Life Safety, 50MB), Pool B (Encrypted Text, 250MB), and Pool C (Audio & Media, 200MB).
 * **Multi-Modal Physical Layer:**
+  * Wi-Fi Hotspot & LAN mesh transceiver with UDP beacon auto-discovery (Port 42424), subnet ARP prober, and bidirectional TCP socket sync (Port 42425).
   * Bluetooth Low Energy (BLE) mesh with 256-bit Bloom filter epidemic synchronization.
   * Near-ultrasound 4FSK acoustic modem (18.5 kHz – 19.5 kHz).
   * Optical Luby Transform (LT) QR fountain stream with real-time CameraX peeling decoder.
   * Opportunistic WAN egress (Base32 Port 53 DNS tunneling & TLS domain fronting).
+* **Crash-Resistant Permission Architecture:** Automated startup permission onboarding and foreground service protection ensuring stable off-grid execution on Android 10 through 14+.
 * **Tactical Glove-Friendly UI:** 1-tap SOS triage action bar, Push-to-Talk audio memos, air-gapped QR group key exchange, and hardware-backed emergency panic wipe.
 
 ---
