@@ -133,9 +133,14 @@ class TriPoolRouter(
             )
 
             var decryptedBytes: ByteArray? = null
+            val actualCiphertext = if (env.bucketLength in 1..2864 && env.bucketLength <= env.encryptedBody.size) {
+                env.encryptedBody.copyOf(env.bucketLength)
+            } else {
+                env.encryptedBody
+            }
             for (key in candidateKeys) {
                 for (aad in candidateAads) {
-                    val res = engine.decryptPayloadTier1(key, env.nonce, aad, env.encryptedBody, env.macTag)
+                    val res = engine.decryptPayloadTier1(key, env.nonce, aad, actualCiphertext, env.macTag)
                     if (res != null) {
                         decryptedBytes = res
                         break
@@ -145,7 +150,8 @@ class TriPoolRouter(
             }
 
             if (decryptedBytes != null) {
-                val text = String(decryptedBytes, Charsets.UTF_8).trim()
+                val rawStr = String(decryptedBytes, Charsets.UTF_8)
+                val text = rawStr.substringBefore('\u0000').trim()
                 if (text.startsWith("{") && text.endsWith("}")) {
                     try {
                         val json = org.json.JSONObject(text)

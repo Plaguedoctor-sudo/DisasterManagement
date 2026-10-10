@@ -234,14 +234,15 @@ class WifiMeshSupervisor(
         // 3. ARP cache connected devices
         candidateIps.addAll(getArpConnectedIps())
 
-        // 4. If on 192.168.43.x hotspot network, probe 192.168.43.2 .. 192.168.43.20
+        // 4. Dynamically scan subnet across any IPv4 network (Android Hotspot, Samsung, iPhone, Wi-Fi router)
         for (ip in localIps) {
             val host = ip.hostAddress ?: continue
-            if (host.startsWith("192.168.43.")) {
-                for (i in 1..20) {
-                    val candidate = "192.168.43.$i"
-                    if (candidate != host) {
-                        candidateIps.add(candidate)
+            if (host != "127.0.0.1" && host.contains(".")) {
+                val prefix = host.substringBeforeLast(".") + "."
+                val myLastOctet = host.substringAfterLast(".").toIntOrNull() ?: -1
+                for (i in 1..25) {
+                    if (i != myLastOctet) {
+                        candidateIps.add("$prefix$i")
                     }
                 }
             }
@@ -293,10 +294,9 @@ class WifiMeshSupervisor(
 
         try {
             val input = socket.getInputStream()
-            val output = socket.getOutputStream()
 
             // 1. Initial Bloom filter inventory sync
-            performBloomSync(output)
+            performBloomSync(socket)
 
             // 2. Keep socket alive and stream live packets in both directions
             val readBuf = ByteArray(4096)
@@ -306,7 +306,7 @@ class WifiMeshSupervisor(
 
                 when (opByte.toByte()) {
                     MSG_BLOOM_SUMMARY -> {
-                        handleBloomSummary(input, output)
+                        handleBloomSummary(socket, input)
                     }
                     MSG_BUNDLE_PAYLOAD -> {
                         if (readExact(input, readBuf)) {
@@ -325,26 +325,37 @@ class WifiMeshSupervisor(
         } catch (_: Exception) {
         } finally {
             try { socket.close() } catch (_: Exception) {}
-            activeConnections.remove(remoteIp)
+            activeConnections.remove(remoteIp, socket)
             updatePeerStatus()
         }
     }
 
-    private fun performBloomSync(output: OutputStream) {
+    private fun writeFrameSafe(socket: Socket, opcode: Byte, data: ByteArray) {
+        try {
+            synchronized(socket) {
+                if (!socket.isClosed && socket.isConnected) {
+                    val out = socket.getOutputStream()
+                    out.write(opcode.toInt())
+                    out.write(data)
+                    out.flush()
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun performBloomSync(socket: Socket) {
         val localBundles = shredder.getAllBundleIds(80)
         val bloom = BundleBloomFilter.fromBundleIds(localBundles)
 
-        // Send 49-byte Bloom summary + consensus time + Lamport clock
-        val bloomBuf = ByteBuffer.allocate(1 + 8 + 8 + BundleBloomFilter.FILTER_SIZE_BYTES).order(ByteOrder.BIG_ENDIAN)
-        bloomBuf.put(MSG_BLOOM_SUMMARY)
+        // Send 48-byte payload: consensus time (8) + Lamport clock (8) + Bloom filter (32)
+        val bloomBuf = ByteBuffer.allocate(8 + 8 + BundleBloomFilter.FILTER_SIZE_BYTES).order(ByteOrder.BIG_ENDIAN)
         bloomBuf.putLong(TimeConsensusManager.shared.getConsensusTimeMs())
         bloomBuf.putLong(TimeConsensusManager.shared.tickLamport())
         bloomBuf.put(bloom.filterBytes)
-        output.write(bloomBuf.array())
-        output.flush()
+        writeFrameSafe(socket, MSG_BLOOM_SUMMARY, bloomBuf.array())
     }
 
-    private fun handleBloomSummary(input: InputStream, output: OutputStream) {
+    private fun handleBloomSummary(socket: Socket, input: InputStream) {
         val timeBuf = ByteArray(8)
         val lamportBuf = ByteArray(8)
         val peerFilter = ByteArray(BundleBloomFilter.FILTER_SIZE_BYTES)
@@ -366,9 +377,7 @@ class WifiMeshSupervisor(
             val bundleBytes = shredder.retrieveBundle(id)
             if (bundleBytes != null) {
                 val frame = if (bundleBytes.size == 4096) bundleBytes else bundleBytes.copyOf(4096)
-                output.write(MSG_BUNDLE_PAYLOAD.toInt())
-                output.write(frame)
-                output.flush()
+                writeFrameSafe(socket, MSG_BUNDLE_PAYLOAD, frame)
             }
         }
     }
@@ -382,13 +391,10 @@ class WifiMeshSupervisor(
             val invariantFrame = if (frame.size == 4096) frame else frame.copyOf(4096)
             for ((ip, socket) in activeConnections) {
                 try {
-                    val out = socket.getOutputStream()
-                    out.write(MSG_BUNDLE_PAYLOAD.toInt())
-                    out.write(invariantFrame)
-                    out.flush()
+                    writeFrameSafe(socket, MSG_BUNDLE_PAYLOAD, invariantFrame)
                 } catch (_: Exception) {
                     try { socket.close() } catch (_: Exception) {}
-                    activeConnections.remove(ip)
+                    activeConnections.remove(ip, socket)
                     updatePeerStatus()
                 }
             }

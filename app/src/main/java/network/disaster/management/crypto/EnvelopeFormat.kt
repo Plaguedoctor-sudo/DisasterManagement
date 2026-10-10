@@ -52,7 +52,8 @@ object EnvelopeFormat {
         buffer.put(env.mlKemCiphertext)
         buffer.put(env.nonce)
         buffer.putInt(env.bucketLength)
-        buffer.put(env.encryptedBody)
+        val bodyBytes = if (env.encryptedBody.size == 2864) env.encryptedBody else env.encryptedBody.copyOf(2864)
+        buffer.put(bodyBytes)
         buffer.put(env.macTag)
         return buffer.array()
     }

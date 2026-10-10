@@ -15,7 +15,7 @@ Initial production release of **DisasterManagement**, an off-grid civil protecti
 * **Verified Signature Scheme:** APK Signature Scheme V2 + V3 (Production Keystore)
 * **SHA-256 Checksum:**
   ```text
-  235639f1f2a98ead4bd5c0cb200b1d2c6812510c0082b5467db0b0351a71f212
+  ef2753b1c7613f4734d6339d5b0dba91b8a3df028243091daa05b4674263ad6d
   ```
 
 ---
