@@ -1,0 +1,66 @@
+name: Build & Publish Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Signed Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant Execute Permission to Gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug & Test
+        run: ./gradlew testReleaseUnitTest
+
+      - name: Build Release APK
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || 'DisasterManagement2026!' }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'disastermesh' }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || 'DisasterManagement2026!' }}
+        run: |
+          ./gradlew assembleRelease
+          mkdir -p release-output
+          cp app/build/outputs/apk/release/app-release.apk release-output/DisasterManagement-release.apk
+          cd release-output
+          sha256sum DisasterManagement-release.apk > checksum.txt
+          cat checksum.txt
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: disaster-management-apk
+          path: release-output/
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-output/DisasterManagement-release.apk
+            release-output/checksum.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true

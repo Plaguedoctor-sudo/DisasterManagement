@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#161616"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Create Civilian Mesh Group"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/etGroupName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#242424"
+        android:hint="Group Name (e.g. Sector 4 Evacuation)"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#666666"
+        android:padding="12dp"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/etGroupDesc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#242424"
+        android:hint="Role / Description (e.g. Flood rescue operations)"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#666666"
+        android:padding="12dp"
+        android:layout_marginBottom="16dp" />
+
+    <Switch
+        android:id="@+id/swBroadcastOnly"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Public Broadcast Channel (Unencrypted Feed)"
+        android:textColor="#CCCCCC"
+        android:layout_marginBottom="20dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnCancelGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:backgroundTint="#333333"
+            android:textColor="#AAAAAA"
+            android:layout_marginEnd="10dp" />
+
+        <Button
+            android:id="@+id/btnConfirmCreateGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Create Group"
+            android:backgroundTint="#008037"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+</LinearLayout>

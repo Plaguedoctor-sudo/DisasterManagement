@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Disaster Management</string>
+    <string name="service_notification_title">Civil Disaster Telemetry Service</string>
+    <string name="service_notification_desc">Monitoring auxiliary sensors and local peer frames.</string>
+</resources>

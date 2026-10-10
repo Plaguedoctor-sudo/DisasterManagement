@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardMessage"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="6dp"
+    app:cardBackgroundColor="#1A1A1A"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    app:strokeColor="#2E2E2E"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <!-- Header: Sender & Tag & Time -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp">
+
+            <TextView
+                android:id="@+id/tvSender"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Civilian Edge Node"
+                android:textColor="#00FF66"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_alignParentStart="true" />
+
+            <TextView
+                android:id="@+id/tvBadgeEmergency"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toEndOf="@id/tvSender"
+                android:layout_marginStart="8dp"
+                android:background="#742A2A"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:text="DISTRESS"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="12:45"
+                android:textColor="#777777"
+                android:textSize="11sp" />
+        </RelativeLayout>
+
+        <!-- Message Body -->
+        <TextView
+            android:id="@+id/tvContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Log emergency coordinates or message..."
+            android:textColor="#EEEEEE"
+            android:textSize="14sp"
+            android:lineSpacingExtra="3dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Media Attachment Container (Image, Video, File) -->
+        <LinearLayout
+            android:id="@+id/layoutAttachment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="#242424"
+            android:padding="10dp"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/ivMediaType"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_gallery"
+                android:layout_marginEnd="10dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvFileName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="flood_zone_map.jpg"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tvFileSize"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="48.2 KB • Invariant Pool C"
+                    android:textColor="#888888"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnOpenFile"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:backgroundTint="#374151"
+                android:text="VIEW"
+                android:textColor="#00FF66"
+                android:textSize="11sp"
+                android:paddingHorizontal="12dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

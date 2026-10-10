@@ -1,0 +1,583 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A0A0A"
+    android:orientation="vertical">
+
+    <!-- Top Status Header Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#141414"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:gravity="center_vertical">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Disaster Management"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Status: Mesh Operational • 4KB Profile"
+                android:textColor="#00FF66"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnQuickDistress"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:backgroundTint="#B71C1C"
+            android:text="SOS DISTRESS"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            app:cornerRadius="6dp" />
+    </LinearLayout>
+
+    <!-- Navigation Tabs -->
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#161616"
+        app:tabIndicatorColor="#00FF66"
+        app:tabSelectedTextColor="#00FF66"
+        app:tabTextColor="#999999"
+        app:tabMode="fixed"
+        app:tabGravity="fill" />
+
+    <!-- Container for Tab Pages -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- TAB 1: BROADCASTS & SITUATIONAL FEED -->
+        <LinearLayout
+            android:id="@+id/layoutTabBroadcast"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="visible">
+
+            <!-- High-Stress Rapid Triage Bar -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#121212"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="8dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Button
+                        android:id="@+id/btnQuickSafe"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:backgroundTint="#1B5E20"
+                        android:text="🟢 I AM SAFE"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:layout_marginEnd="6dp"
+                        app:cornerRadius="6dp" />
+
+                    <Button
+                        android:id="@+id/btnQuickTrapped"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:backgroundTint="#B71C1C"
+                        android:text="🔴 TRAPPED / AID"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:layout_marginEnd="6dp"
+                        app:cornerRadius="6dp" />
+
+                    <Button
+                        android:id="@+id/btnQuickSupplies"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:backgroundTint="#E65100"
+                        android:text="🟡 NEED SUPPLIES"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:layout_marginEnd="6dp"
+                        app:cornerRadius="6dp" />
+
+                    <Button
+                        android:id="@+id/btnQuickHazard"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:backgroundTint="#4A148C"
+                        android:text="⚠️ HAZARD REPORT"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="6dp" />
+                </LinearLayout>
+            </HorizontalScrollView>
+
+            <!-- Broadcast Input Box -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#181818"
+                android:orientation="horizontal"
+                android:padding="10dp"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/etBroadcastInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="#242424"
+                    android:hint="Broadcast status, hazard, coordinates..."
+                    android:padding="10dp"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#666666"
+                    android:textSize="13sp"
+                    android:maxLines="3" />
+
+                <Button
+                    android:id="@+id/btnBroadcastSend"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:backgroundTint="#2D3748"
+                    android:text="Broadcast"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    app:cornerRadius="6dp" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CIVILIAN SITUATIONAL FEED (POOL B &amp; A)"
+                android:textColor="#666666"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="4dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvBroadcastFeed"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:paddingVertical="4dp" />
+        </LinearLayout>
+
+        <!-- TAB 2: CIVILIAN GROUPS -->
+        <LinearLayout
+            android:id="@+id/layoutTabGroups"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="12dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="CIVILIAN TEAMS &amp; CHANNELS"
+                    android:textColor="#666666"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnCreateGroup"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:backgroundTint="#008037"
+                    android:text="+ Create"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    app:cornerRadius="6dp" />
+
+                <Button
+                    android:id="@+id/btnJoinGroupQr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="6dp"
+                    android:backgroundTint="#2D3748"
+                    android:text="Join via QR"
+                    android:textColor="#60A5FA"
+                    android:textSize="12sp"
+                    app:cornerRadius="6dp" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvGroups"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:paddingVertical="4dp" />
+        </LinearLayout>
+
+        <!-- TAB 3: MEDIA & FILE SHARING (POOL C) -->
+        <ScrollView
+            android:id="@+id/layoutTabMedia"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Air-Gapped Media &amp; File Broadcaster"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Slices images, video clips, and binary files into 4,096-byte uniform invariant packets routed through Pool C (Bulk Media - 200MB quota)."
+                    android:textColor="#888888"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- Action Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="#181818"
+                    app:cardCornerRadius="10dp"
+                    app:strokeColor="#2E2E2E"
+                    app:strokeWidth="1dp"
+                    android:padding="16dp"
+                    android:layout_marginBottom="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <Button
+                            android:id="@+id/btnSelectMediaFile"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Select Image / Video / File to Share"
+                            android:backgroundTint="#2D3748"
+                            android:textColor="#FFFFFF"
+                            android:drawableLeft="@android:drawable/ic_menu_upload" />
+
+                        <LinearLayout
+                            android:id="@+id/layoutSelectedFileInfo"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="12dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/tvSelectedFileName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Filename: sample.jpg"
+                                android:textColor="#FFFFFF"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvSelectedFileDetails"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Size: 240 KB | Mime: image/jpeg | Chunks: 88"
+                                android:textColor="#00FF66"
+                                android:textSize="12sp"
+                                android:layout_marginTop="2dp" />
+
+                            <ProgressBar
+                                android:id="@+id/pbChunking"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:visibility="gone" />
+
+                            <Button
+                                android:id="@+id/btnBroadcastMediaChunks"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:backgroundTint="#008037"
+                                android:text="Disseminate Chunks Over Mesh (Pool C)"
+                                android:textColor="#FFFFFF" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Media Feasibility & Quota Information -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="#141414"
+                    app:cardCornerRadius="10dp"
+                    app:strokeColor="#252525"
+                    app:strokeWidth="1dp"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Pool C Media Specifications"
+                            android:textColor="#CCCCCC"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="• Payload chunk slice: 2,800 bytes\n• Profile bucket invariant: Exactly 4,096 bytes\n• Storage Isolation: Media cannot starve Pool A (Distress 50MB) or Pool B (Text 250MB)\n• Ephemeral Shredding: Individual subkey purge erases bundles without wearing flash memory"
+                            android:textColor="#777777"
+                            android:textSize="11sp"
+                            android:layout_marginTop="6dp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- TAB 4: RELAYS, SENSORS & SYSTEM CONTROLS -->
+        <ScrollView
+            android:id="@+id/layoutTabRelays"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Multi-Modal Physical Transport"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="10dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#161616"
+                    android:orientation="vertical"
+                    android:padding="12dp"
+                    android:layout_marginBottom="16dp">
+
+                    <Switch
+                        android:id="@+id/swBle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Bluetooth Low Energy L2CAP CoC"
+                        android:textColor="#FFFFFF" />
+
+                    <Switch
+                        android:id="@+id/swMic"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Acoustic 4FSK Receiver (18.5kHz - 19.5kHz)"
+                        android:textColor="#FFFFFF" />
+
+                    <Switch
+                        android:id="@+id/swCam"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Optical LT Fountain QR Scanner"
+                        android:textColor="#FFFFFF" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Network Connectivity Policy"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="10dp" />
+
+                <RadioGroup
+                    android:id="@+id/rgPolicy"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#161616"
+                    android:padding="12dp"
+                    android:layout_marginBottom="16dp">
+
+                    <RadioButton
+                        android:id="@+id/rbAirgap"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Air-Gapped Offline Mode (Battery Saver)"
+                        android:textColor="#CCCCCC"
+                        android:checked="true" />
+
+                    <RadioButton
+                        android:id="@+id/rbOpportunistic"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Opportunistic WAN Egress (DNS Port 53 Tunneling)"
+                        android:textColor="#CCCCCC" />
+                </RadioGroup>
+
+                <!-- Storage Pool Quotas Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="#161616"
+                    app:cardCornerRadius="10dp"
+                    app:strokeColor="#2E2E2E"
+                    app:strokeWidth="1dp"
+                    android:padding="14dp"
+                    android:layout_marginBottom="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Anti-Starvation Storage Quotas"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <!-- Pool A -->
+                        <TextView
+                            android:id="@+id/tvPoolAUsage"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Pool A (Emergency): 0 KB / 50 MB"
+                            android:textColor="#FF4444"
+                            android:textSize="11sp"
+                            android:layout_marginTop="8dp" />
+
+                        <ProgressBar
+                            android:id="@+id/pbPoolA"
+                            style="?android:attr/progressBarStyleHorizontal"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="100"
+                            android:progress="0"
+                            android:progressTint="#FF4444" />
+
+                        <!-- Pool B -->
+                        <TextView
+                            android:id="@+id/tvPoolBUsage"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Pool B (Text &amp; Feed): 0 KB / 250 MB"
+                            android:textColor="#00FF66"
+                            android:textSize="11sp"
+                            android:layout_marginTop="6dp" />
+
+                        <ProgressBar
+                            android:id="@+id/pbPoolB"
+                            style="?android:attr/progressBarStyleHorizontal"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="100"
+                            android:progress="0"
+                            android:progressTint="#00FF66" />
+
+                        <!-- Pool C -->
+                        <TextView
+                            android:id="@+id/tvPoolCUsage"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Pool C (Bulk Media): 0 KB / 200 MB"
+                            android:textColor="#60A5FA"
+                            android:textSize="11sp"
+                            android:layout_marginTop="6dp" />
+
+                        <ProgressBar
+                            android:id="@+id/pbPoolC"
+                            style="?android:attr/progressBarStyleHorizontal"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="100"
+                            android:progress="0"
+                            android:progressTint="#60A5FA" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <Button
+                    android:id="@+id/btnOpenSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Legal EULA &amp; Cryptographic Audit Logs"
+                    android:backgroundTint="#262626"
+                    android:textColor="#FFFFFF"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/btnPanic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:backgroundTint="#331111"
+                    android:text="Emergency Low-Wear Cryptographic Shred &amp; Reset"
+                    android:textColor="#FF6666"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
+        </ScrollView>
+
+    </FrameLayout>
+
+</LinearLayout>

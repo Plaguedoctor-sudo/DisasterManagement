@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A0A0A"
+    android:orientation="vertical">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#161616"
+        android:orientation="horizontal"
+        android:padding="14dp"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btnBackOptical"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:src="@android:drawable/ic_menu_revert"
+            android:tint="#FFFFFF"
+            android:layout_marginEnd="10dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Optical LT Fountain Transceiver"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Zero-RF Air-Gapped Optical Data Transfer"
+                android:textColor="#00FF66"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Transceiver Mode Switch -->
+    <RadioGroup
+        android:id="@+id/rgOpticalMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#141414"
+        android:padding="8dp">
+
+        <RadioButton
+            android:id="@+id/rbModeTransmit"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Broadcast Screen Stream"
+            android:textColor="#FFFFFF"
+            android:checked="true" />
+
+        <RadioButton
+            android:id="@+id/rbModeReceive"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Camera Droplet Scanner"
+            android:textColor="#FFFFFF" />
+    </RadioGroup>
+
+    <!-- Content Frame -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- TRANSMIT VIEW -->
+        <LinearLayout
+            android:id="@+id/layoutOpticalTransmit"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="20dp"
+            android:visibility="visible">
+
+            <TextView
+                android:id="@+id/tvDropletInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Luby Transform Droplet #1 (Seed 0x01)"
+                android:textColor="#CCCCCC"
+                android:textSize="13sp"
+                android:layout_marginBottom="12dp" />
+
+            <ImageView
+                android:id="@+id/ivAnimatedQr"
+                android:layout_width="320dp"
+                android:layout_height="320dp"
+                android:background="#FFFFFF"
+                android:padding="10dp"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Point receiving device camera at this animated QR stream.\nGaussian peeling solves full 4KB packet upon 32-40 droplets."
+                android:textColor="#777777"
+                android:textSize="11sp"
+                android:gravity="center"
+                android:layout_marginTop="16dp" />
+        </LinearLayout>
+
+        <!-- RECEIVE VIEW -->
+        <LinearLayout
+            android:id="@+id/layoutOpticalReceive"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="14dp"
+            android:visibility="gone">
+
+            <!-- CameraX Scanner Preview Frame -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="240dp"
+                android:background="#000000">
+
+                <androidx.camera.view.PreviewView
+                    android:id="@+id/cameraPreviewView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <!-- Reticle / Target Viewfinder Frame -->
+                <View
+                    android:layout_width="180dp"
+                    android:layout_height="180dp"
+                    android:layout_gravity="center"
+                    android:background="@android:drawable/dialog_holo_dark_frame" />
+
+                <TextView
+                    android:id="@+id/tvCameraScanHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|center_horizontal"
+                    android:layout_marginBottom="8dp"
+                    android:background="#80000000"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp"
+                    android:text="Align fountain QR inside reticle"
+                    android:textColor="#00FF66"
+                    android:textSize="11sp" />
+            </FrameLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Optical Droplet Receiver Status"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:id="@+id/tvReceiverRankStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Awaiting LT QR droplets... (Rank 0/32)"
+                android:textColor="#00FF66"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+
+            <ProgressBar
+                android:id="@+id/pbRankSolver"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="32"
+                android:progress="0"
+                android:progressTint="#00FF66"
+                android:layout_marginTop="6dp" />
+
+            <!-- Action Controls Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <Button
+                    android:id="@+id/btnResetSolver"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:backgroundTint="#333333"
+                    android:text="Reset Solver"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:layout_marginEnd="6dp" />
+
+                <Button
+                    android:id="@+id/btnToggleManualInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:backgroundTint="#222222"
+                    android:text="Manual Entry"
+                    android:textColor="#AAAAAA"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <!-- Collapsible Manual Input Row -->
+            <LinearLayout
+                android:id="@+id/layoutManualEntry"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginTop="8dp">
+
+                <EditText
+                    android:id="@+id/etManualDropletInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="#1E1E1E"
+                    android:hint="Manual / scanned droplet payload (Base64)..."
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#666666"
+                    android:padding="10dp"
+                    android:textSize="12sp" />
+
+                <Button
+                    android:id="@+id/btnIngestDroplet"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:backgroundTint="#008037"
+                    android:text="Ingest Droplet to Gaussian Solver"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="#121212"
+                android:layout_marginTop="8dp"
+                android:padding="8dp">
+
+                <TextView
+                    android:id="@+id/tvSolverLogs"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#AAAAAA"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:text="[Ready] Peeling decoder initialized for K=32 blocks.\nPoint camera at transmitting device." />
+            </ScrollView>
+        </LinearLayout>
+
+    </FrameLayout>
+
+</LinearLayout>

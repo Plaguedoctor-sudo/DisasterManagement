@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D0D0D"
+    android:orientation="vertical">
+
+    <!-- Group Header Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1A1A1A"
+        android:orientation="horizontal"
+        android:padding="14dp"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:src="@android:drawable/ic_menu_revert"
+            android:tint="#FFFFFF"
+            android:layout_marginEnd="10dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvChatGroupName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Group Name"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvChatGroupDesc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Encrypted Mesh Channel"
+                android:textColor="#00FF66"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btnAcousticChirp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:src="@android:drawable/ic_lock_silent_mode_off"
+            android:tint="#FFA000"
+            android:layout_marginEnd="6dp" />
+
+        <ImageButton
+            android:id="@+id/btnShareGroupQr"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:src="@android:drawable/ic_menu_share"
+            android:tint="#00FF66"
+            android:layout_marginEnd="6dp" />
+
+        <ImageButton
+            android:id="@+id/btnLeaveGroup"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:src="@android:drawable/ic_menu_delete"
+            android:tint="#FF4444" />
+    </LinearLayout>
+
+    <!-- Rapid Incident Coordination & Roll Call Bar -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#121212"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="6dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <Button
+                android:id="@+id/btnTeamCheckIn"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:backgroundTint="#1B5E20"
+                android:text="✅ CHECK-IN (SAFE)"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="6dp"
+                app:cornerRadius="4dp" />
+
+            <Button
+                android:id="@+id/btnTeamNeedAid"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:backgroundTint="#B71C1C"
+                android:text="🚨 NEED EVACUATION"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="6dp"
+                app:cornerRadius="4dp" />
+
+            <Button
+                android:id="@+id/btnTeamSupplies"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:backgroundTint="#E65100"
+                android:text="📦 SUPPLY REQUEST"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="6dp"
+                app:cornerRadius="4dp" />
+
+            <Button
+                android:id="@+id/btnTeamLocation"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:backgroundTint="#0D47A1"
+                android:text="📍 SHARE GPS"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                app:cornerRadius="4dp" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Message Stream -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvGroupMessages"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingVertical="8dp" />
+
+    <!-- Chat Input Area -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#161616"
+        android:orientation="horizontal"
+        android:padding="10dp"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btnAttachMedia"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:src="@android:drawable/ic_menu_upload"
+            android:tint="#60A5FA" />
+
+        <ImageButton
+            android:id="@+id/btnRecordVoice"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:src="@android:drawable/ic_btn_speak_now"
+            android:tint="#FFA000"
+            android:layout_marginStart="4dp" />
+
+        <EditText
+            android:id="@+id/etChatMessage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="#222222"
+            android:hint="Type encrypted message..."
+            android:padding="12dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#666666"
+            android:layout_marginHorizontal="6dp"
+            android:maxLines="4" />
+
+        <ImageButton
+            android:id="@+id/btnSendChat"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:src="@android:drawable/ic_menu_send"
+            android:tint="#00FF66" />
+    </LinearLayout>
+
+</LinearLayout>

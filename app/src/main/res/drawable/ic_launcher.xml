@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Dark Tactical Background -->
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M0,0h108v108h-108z" />
+    <!-- Tactical Shield Outline -->
+    <path
+        android:fillColor="#1E293B"
+        android:strokeColor="#00FF66"
+        android:strokeWidth="2.5"
+        android:pathData="M54,16 L88,32 L88,68 L54,92 L20,68 L20,32 Z" />
+    <!-- Emergency Beacon Mast -->
+    <path
+        android:fillColor="#00FF66"
+        android:pathData="M51,34 h6 v36 h-6 z" />
+    <path
+        android:fillColor="#00FF66"
+        android:pathData="M38,47 h32 v6 h-32 z" />
+    <!-- Signal Relay Waves -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M43,27 A16,16 0 0,1 65,27" />
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M35,21 A27,27 0 0,1 73,21" />
+</vector>

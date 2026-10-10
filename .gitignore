@@ -1,0 +1,29 @@
+# Built Application Binaries
+*.apk
+*.aab
+*.ap_
+
+# Signing Keystores & Credentials
+keystore/
+*.jks
+*.keystore
+secrets.properties
+
+# Gradle & Build Outputs
+.gradle/
+build/
+app/build/
+*.iml
+.idea/
+local.properties
+.DS_Store
+/captures
+
+# Native C/C++ Build Artifacts
+.externalNativeBuild
+.cxx
+app/.cxx/
+
+# Profiling & Dumps
+*.hprof
+
