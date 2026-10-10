@@ -53,6 +53,7 @@ class WifiMeshSupervisor(
 
     // Cooldown map for peer connection attempts: IP -> timestamp
     private val peerConnectCooldown = ConcurrentHashMap<String, Long>()
+    private val rateLimiter = MeshRateLimiter(peerLimitPerSec = 20, channelLimitPerSec = 60)
 
     private val _peerCount = MutableStateFlow(0)
     val peerCount: StateFlow<Int> = _peerCount.asStateFlow()
@@ -309,7 +310,9 @@ class WifiMeshSupervisor(
                     }
                     MSG_BUNDLE_PAYLOAD -> {
                         if (readExact(input, readBuf)) {
-                            router.processIngressPacket(readBuf.clone())
+                            if (rateLimiter.allowPacket(remoteIp, "BUNDLE")) {
+                                router.processIngressPacket(readBuf.clone())
+                            }
                         } else {
                             break
                         }

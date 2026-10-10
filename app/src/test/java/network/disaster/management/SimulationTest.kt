@@ -184,9 +184,13 @@ class SimulationTest {
             TriPoolRouter.RouteVerdict.ACCEPTED_POOL_B, verdictText)
 
         // 5. Test Text with Unsolved PoW -> DROPPED
+        textEnv.powDifficulty = 16
         textEnv.powNonce = 0
-        textEnv.powDifficulty = 4
-        val unsolvedTextBytes = EnvelopeFormat.serializeTier1(textEnv)
+        var unsolvedTextBytes = EnvelopeFormat.serializeTier1(textEnv)
+        while (router.verifyPoW(unsolvedTextBytes)) {
+            textEnv.powNonce++
+            unsolvedTextBytes = EnvelopeFormat.serializeTier1(textEnv)
+        }
         val verdictUnsolved = router.processIngressPacket(unsolvedTextBytes)
         assertEquals("Text envelope with invalid PoW must be DROPPED",
             TriPoolRouter.RouteVerdict.DROPPED, verdictUnsolved)

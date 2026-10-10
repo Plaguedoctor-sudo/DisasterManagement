@@ -20,16 +20,46 @@ Java_network_disaster_management_crypto_NativeMemoryLock_allocateLockedMemory(JN
     return (jlong)ptr;
 }
 
+static void dod5220_wipe(volatile unsigned char *vptr, size_t size) {
+    if (!vptr || size == 0) return;
+    // Pass 1: Pseudo-random fill
+    for (size_t i = 0; i < size; i++) {
+        vptr[i] = (unsigned char)(rand() & 0xFF);
+    }
+    __asm__ __volatile__("" : : "r"(vptr) : "memory");
+
+    // Pass 2: Bitwise inversion
+    for (size_t i = 0; i < size; i++) {
+        vptr[i] = (unsigned char)(~vptr[i]);
+    }
+    __asm__ __volatile__("" : : "r"(vptr) : "memory");
+
+    // Pass 3: Binary Zeroization (0x00)
+    for (size_t i = 0; i < size; i++) {
+        vptr[i] = 0x00;
+    }
+    __asm__ __volatile__("" : : "r"(vptr) : "memory");
+}
+
 JNIEXPORT void JNICALL
 Java_network_disaster_management_crypto_NativeMemoryLock_wipeAndFree(JNIEnv *env, jobject thiz, jlong addr, jint size) {
     if (addr == 0 || size <= 0) return;
     void *ptr = (void *)addr;
     volatile unsigned char *vptr = (volatile unsigned char *)ptr;
-    for (size_t i = 0; i < (size_t)size; i++) {
-        vptr[i] = 0x00;
-    }
+    dod5220_wipe(vptr, (size_t)size);
     munlock(ptr, (size_t)size);
     munmap(ptr, (size_t)size);
+}
+
+JNIEXPORT void JNICALL
+Java_network_disaster_management_crypto_NativeMemoryLock_nativeSecureWipeByteArray(JNIEnv *env, jobject thiz, jbyteArray array) {
+    if (!array) return;
+    jsize len = (*env)->GetArrayLength(env, array);
+    if (len <= 0) return;
+    jbyte *bytes = (*env)->GetByteArrayElements(env, array, NULL);
+    if (!bytes) return;
+    dod5220_wipe((volatile unsigned char *)bytes, (size_t)len);
+    (*env)->ReleaseByteArrayElements(env, array, bytes, 0); // 0 = write back and release
 }
 
 JNIEXPORT void JNICALL

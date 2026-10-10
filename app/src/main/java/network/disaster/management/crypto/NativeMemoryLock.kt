@@ -71,5 +71,19 @@ class NativeMemoryLock {
     private external fun nativeWipeAndFree(address: Long, size: Int)
     private external fun nativeWriteLockedBytes(address: Long, data: ByteArray, length: Int)
     private external fun nativeReadLockedBytes(address: Long, length: Int): ByteArray
+    private external fun nativeSecureWipeByteArray(array: ByteArray)
+
+    fun secureWipe(buffer: ByteArray) {
+        if (isNativeLoaded) {
+            try {
+                nativeSecureWipeByteArray(buffer)
+                return
+            } catch (_: UnsatisfiedLinkError) {}
+        }
+        // JVM Fallback 3-Pass Zeroization (DoD 5220.22-M / FIPS 140-3 Area 7)
+        java.security.SecureRandom().nextBytes(buffer) // Pass 1: Random
+        for (i in buffer.indices) buffer[i] = (buffer[i].toInt().inv()).toByte() // Pass 2: Invert
+        buffer.fill(0) // Pass 3: Zeroize
+    }
 }
 
