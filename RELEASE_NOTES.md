@@ -8,13 +8,14 @@ Initial production release of **DisasterManagement**, an off-grid civil protecti
 
 ### 📥 Download & Verification
 
-* **Universal Release APK:** `DisasterManagement-v1.0.0-signed.apk` (27 MB)
-* **Minimum Android Version:** Android 10.0 (API Level 29)
+* **Universal Release APK:** `DisasterManagement-v1.0.0-signed.apk` (18 MB)
+* **Version:** 1.0.1 (VersionCode 2)
+* **Minimum Android Version:** Android 8.0 (API Level 26)
 * **Target Android Version:** Android 14.0 (API Level 34)
-* **Verified Signature Scheme:** APK Signature Scheme V3 (Production Keystore)
+* **Verified Signature Scheme:** APK Signature Scheme V2 + V3 (Production Keystore)
 * **SHA-256 Checksum:**
   ```text
-  8620b8d51c0bab71872b1a09b6777119e54d87de3473561fdb311aa31fe21059
+  af31c481fd02e71059d5b2ac9b3348a26154047cf5e4c05f3d44ed476ee75927
   ```
 
 ---

@@ -15,7 +15,7 @@
 ### Option 1: Direct APK Installation (Fastest)
 1. **Download the Signed Production APK:**
    - Download directly from GitHub Releases:  
-     👉 **[Download DisasterManagement-v1.0.0-signed.apk](https://github.com/Plaguedoctor-sudo/DisasterManagement/releases/download/v1.0.0/DisasterManagement-v1.0.0-signed.apk)** *(27 MB)*  
+     👉 **[Download DisasterManagement-v1.0.0-signed.apk](https://github.com/Plaguedoctor-sudo/DisasterManagement/releases/download/v1.0.0/DisasterManagement-v1.0.0-signed.apk)** *(18 MB)*  
    - Or browse the [v1.0.0 Release Page](https://github.com/Plaguedoctor-sudo/DisasterManagement/releases/tag/v1.0.0).
 2. **Transfer to Device:**
    - Transfer via USB cable, SD card, Bluetooth, or local Wi-Fi share (or download directly in your mobile browser).
