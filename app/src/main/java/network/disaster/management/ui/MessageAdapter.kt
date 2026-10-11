@@ -53,17 +53,43 @@ class MessageAdapter(
         private val tvFileSize: TextView = itemView.findViewById(R.id.tvFileSize)
         private val btnOpenFile: Button = itemView.findViewById(R.id.btnOpenFile)
 
+        private val cardMessage: com.google.android.material.card.MaterialCardView = itemView.findViewById(R.id.cardMessage)
+
         fun bind(msg: FeedMessage) {
             tvSender.text = msg.senderName
             tvTime.text = timeFormat.format(Date(msg.timestamp))
             tvContent.text = msg.content
 
-            if (msg.isEmergency || msg.type == MessageType.EMERGENCY) {
+            val isHostile = network.disaster.management.security.HostileActorDetector.shared.isSenderHostile(msg.senderName)
+            val profile = network.disaster.management.security.HostileActorDetector.shared.getProfile(msg.senderName)
+
+            if (isHostile) {
                 tvBadgeEmergency.visibility = View.VISIBLE
+                tvBadgeEmergency.text = "🚨 HOSTILE INFILTRATOR"
+                tvBadgeEmergency.setBackgroundColor(0xFFB71C1C.toInt())
+                tvSender.setTextColor(0xFFFF2222.toInt())
+                tvSender.text = "⚠️ ${msg.senderName} [COUNTER-INTEL DETECTED]"
+                cardMessage.strokeColor = 0xFFFF2222.toInt()
+                cardMessage.strokeWidth = 3
+            } else if (profile?.classification == network.disaster.management.map.ActorClassification.SUSPICIOUS_ACTOR) {
+                tvBadgeEmergency.visibility = View.VISIBLE
+                tvBadgeEmergency.text = "⚠️ SUSPICIOUS ACTOR (${profile.trustScore}%)"
+                tvBadgeEmergency.setBackgroundColor(0xFFE65100.toInt())
+                tvSender.setTextColor(0xFFFFB300.toInt())
+                cardMessage.strokeColor = 0xFFE65100.toInt()
+                cardMessage.strokeWidth = 2
+            } else if (msg.isEmergency || msg.type == MessageType.EMERGENCY) {
+                tvBadgeEmergency.visibility = View.VISIBLE
+                tvBadgeEmergency.text = "DISTRESS"
+                tvBadgeEmergency.setBackgroundColor(0xFF742A2A.toInt())
                 tvSender.setTextColor(0xFFFF4444.toInt())
+                cardMessage.strokeColor = 0xFF2E2E2E.toInt()
+                cardMessage.strokeWidth = 1
             } else {
                 tvBadgeEmergency.visibility = View.GONE
                 tvSender.setTextColor(0xFF00FF66.toInt())
+                cardMessage.strokeColor = 0xFF2E2E2E.toInt()
+                cardMessage.strokeWidth = 1
             }
 
             if (msg.fileName != null || msg.type in listOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE)) {

@@ -40,6 +40,18 @@
         </LinearLayout>
 
         <Button
+            android:id="@+id/btnStopApp"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:backgroundTint="#8B0000"
+            android:text="🛑 STOP"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="6dp"
+            app:cornerRadius="6dp" />
+
+        <Button
             android:id="@+id/btnQuickDistress"
             android:layout_width="wrap_content"
             android:layout_height="38dp"
@@ -260,7 +272,243 @@
                 android:paddingVertical="4dp" />
         </LinearLayout>
 
-        <!-- TAB 2: CIVILIAN GROUPS -->
+        <!-- TAB 2: SIMPLIFIED LOCAL AREA MAP & TRAPPED SURVIVOR SIMULATION -->
+        <LinearLayout
+            android:id="@+id/layoutTabMap"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Tactical Threat & Vitals Dashboard -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="#101820"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tvSimThreatBanner"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="STEALTH OPTIMAL • RF Radio Silence (0m Footprint)"
+                        android:textColor="#00FF66"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <Button
+                        android:id="@+id/btnSimToggleStealth"
+                        android:layout_width="wrap_content"
+                        android:layout_height="34dp"
+                        android:backgroundTint="#2D3748"
+                        android:text="🔇 RADIO SILENCE"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="6dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvSimVitals"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="❤️ HP: 100% | 💧 Water: 85% | 🥫 Food: 90% | 🔋 Bat: 75%"
+                    android:textColor="#E2E8F0"
+                    android:textSize="12sp"
+                    android:typeface="monospace"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:id="@+id/tvSimInventorySummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🎒 INV: 💧 3.0L | 🥫 4 Rations | 🩹 2 MedKits | 🧪 10 Tabs | 🔋 4500mAh"
+                    android:textColor="#38BDF8"
+                    android:textSize="11sp"
+                    android:typeface="monospace"
+                    android:layout_marginTop="2dp" />
+
+                <!-- Action Controls: Micro-burst SOS, Step Sim, Scavenge, Inventory, Highlight, Intel -->
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:layout_marginTop="6dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/btnSimMicroBurst"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:backgroundTint="#B71C1C"
+                            android:text="📡 100ms SOS"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:layout_marginEnd="6dp"
+                            app:cornerRadius="4dp" />
+
+                        <Button
+                            android:id="@+id/btnSimInventory"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:backgroundTint="#0284C7"
+                            android:text="🎒 INVENTORY"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:layout_marginEnd="6dp"
+                            app:cornerRadius="4dp" />
+
+                        <Button
+                            android:id="@+id/btnSimHighlight"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:backgroundTint="#CA8A04"
+                            android:text="⭐ HIGHLIGHT"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:layout_marginEnd="6dp"
+                            app:cornerRadius="4dp" />
+
+                        <Button
+                            android:id="@+id/btnSimHostileIntel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:backgroundTint="#DC2626"
+                            android:text="🛡️ HOSTILE INTEL"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:layout_marginEnd="6dp"
+                            app:cornerRadius="4dp" />
+
+                        <Button
+                            android:id="@+id/btnSimStep"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:backgroundTint="#1E3A8A"
+                            android:text="⏱️ STEP"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:layout_marginEnd="6dp"
+                            app:cornerRadius="4dp" />
+
+                        <Button
+                            android:id="@+id/btnSimScavengeWater"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:backgroundTint="#0369A1"
+                            android:text="💧 WATER"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:layout_marginEnd="6dp"
+                            app:cornerRadius="4dp" />
+
+                        <Button
+                            android:id="@+id/btnSimScavengeMed"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:backgroundTint="#047857"
+                            android:text="🩹 MED-KIT"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:layout_marginEnd="6dp"
+                            app:cornerRadius="4dp" />
+
+                        <Button
+                            android:id="@+id/btnSimExtraction"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:backgroundTint="#D97706"
+                            android:text="🚩 SAFEHOUSE"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="4dp" />
+                    </LinearLayout>
+                </HorizontalScrollView>
+            </LinearLayout>
+
+            <!-- Map View Container with Zoom Controls -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <network.disaster.management.ui.TacticalLocalMapView
+                    android:id="@+id/mapTacticalView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <!-- Floating Zoom Controls -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentBottom="true"
+                    android:layout_margin="12dp">
+
+                    <Button
+                        android:id="@+id/btnMapZoomIn"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:backgroundTint="#801E293B"
+                        android:text="+"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="22dp" />
+
+                    <Button
+                        android:id="@+id/btnMapZoomOut"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="8dp"
+                        android:backgroundTint="#801E293B"
+                        android:text="−"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="22dp" />
+                </LinearLayout>
+            </RelativeLayout>
+
+            <!-- Live Incident Ticker / Guidance -->
+            <TextView
+                android:id="@+id/tvSimIncidentLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#0A0F18"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:textColor="#94A3B8"
+                android:textSize="11sp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:typeface="monospace"
+                android:text="TACTICAL INTEL: Maintain radio silence while hostile drone sweeps sector. Approach water cistern via eastern rubble trench." />
+        </LinearLayout>
+
+        <!-- TAB 3: CIVILIAN GROUPS -->
         <LinearLayout
             android:id="@+id/layoutTabGroups"
             android:layout_width="match_parent"

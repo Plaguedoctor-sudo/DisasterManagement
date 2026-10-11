@@ -318,7 +318,7 @@ class GroupChatActivity : AppCompatActivity() {
                 envelope.powNonce = solvedNonce
                 val finalPacket = EnvelopeFormat.serializeTier1(envelope)
                 router.processIngressPacket(finalPacket)
-                network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(finalPacket)
+                network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(finalPacket)
             } catch (_: Exception) {}
 
             withContext(Dispatchers.Main) {
@@ -347,7 +347,7 @@ class GroupChatActivity : AppCompatActivity() {
                 for (pkg in packages) {
                     shredder.saveFileChunk(pkg.fileId, pkg.chunkIndex, pkg.totalChunks, pkg.chunkData)
                     router.processIngressPacket(pkg.packet4k)
-                    network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(pkg.packet4k)
+                    network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(pkg.packet4k)
                 }
 
                 val type = when {
@@ -507,7 +507,7 @@ class GroupChatActivity : AppCompatActivity() {
                 for (pkg in packages) {
                     shredder.saveFileChunk(pkg.fileId, pkg.chunkIndex, pkg.totalChunks, pkg.chunkData)
                     router.processIngressPacket(pkg.packet4k)
-                    network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(pkg.packet4k)
+                    network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(pkg.packet4k)
                 }
 
                 val senderId = "Node-" + (Build.MODEL.takeLast(4).ifEmpty { "ME" })

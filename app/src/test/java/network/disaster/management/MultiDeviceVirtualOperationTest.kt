@@ -298,4 +298,124 @@ class MultiDeviceVirtualOperationTest {
             }
         }
     }
+
+    @Test(timeout = 8000)
+    fun testBleMeshP2pProtocolAndZeroWifiBroadcast() {
+            // Simulate 2 off-grid devices communicating via BLE L2CAP CoC sockets (Zero-Wi-Fi)
+            val phone1 = VirtualNode("Phone1_Civilian", 44001)
+            val phone2 = VirtualNode("Phone2_Civilian", 44002)
+
+            val server = ServerSocket(0)
+            val assignedDynamicPsm = server.localPort
+
+            // 1. Verify dynamic PSM serialization into 2-byte BLE scan response service data
+            val psmBytes = java.nio.ByteBuffer.allocate(2).order(java.nio.ByteOrder.BIG_ENDIAN).putShort(assignedDynamicPsm.toShort()).array()
+            assertEquals(2, psmBytes.size)
+            val parsedPsm = java.nio.ByteBuffer.wrap(psmBytes).order(java.nio.ByteOrder.BIG_ENDIAN).short.toInt() and 0xFFFF
+            assertEquals(assignedDynamicPsm, parsedPsm)
+
+            var clientConnected = false
+            var receivedBloomSummary = false
+            val serverReceivedMessages = mutableListOf<FeedMessage>()
+
+            val serverThread = thread(start = true, isDaemon = true) {
+                try {
+                    val socket = server.accept()
+                    clientConnected = true
+                    val input = socket.getInputStream()
+                    val readBuf = ByteArray(4096)
+
+                    while (!socket.isClosed) {
+                        val op = input.read()
+                        if (op == -1) break
+                        when (op.toByte()) {
+                            network.disaster.management.transport.BleMeshSupervisor.MSG_BLOOM_SUMMARY -> {
+                                val summaryBytes = ByteArray(8 + 8 + BundleBloomFilter.FILTER_SIZE_BYTES)
+                                if (readExact(input, summaryBytes)) {
+                                    receivedBloomSummary = true
+                                    // Send Bloom response back
+                                    val bloom = BundleBloomFilter.fromBundleIds(emptyList())
+                                    val resp = java.nio.ByteBuffer.allocate(8 + 8 + BundleBloomFilter.FILTER_SIZE_BYTES).order(java.nio.ByteOrder.BIG_ENDIAN)
+                                    resp.putLong(System.currentTimeMillis())
+                                    resp.putLong(1L)
+                                    resp.put(bloom.filterBytes)
+                                    writeFrameSafe(socket, network.disaster.management.transport.BleMeshSupervisor.MSG_BLOOM_SUMMARY, resp.array())
+                                }
+                            }
+                            network.disaster.management.transport.BleMeshSupervisor.MSG_BUNDLE_PAYLOAD -> {
+                                if (readExact(input, readBuf)) {
+                                    processPacketOnNode(phone2, readBuf.clone())
+                                }
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            // 2. Connect client to parsed dynamic PSM
+            val clientSocket = Socket("127.0.0.1", parsedPsm)
+            assertTrue(clientSocket.isConnected)
+
+            // 3. Send Bloom filter summary from client
+            val bloom1 = BundleBloomFilter.fromBundleIds(listOf(ByteArray(32) { 0xAA.toByte() }))
+            val bloomBuf = java.nio.ByteBuffer.allocate(8 + 8 + BundleBloomFilter.FILTER_SIZE_BYTES).order(java.nio.ByteOrder.BIG_ENDIAN)
+            bloomBuf.putLong(System.currentTimeMillis())
+            bloomBuf.putLong(1L)
+            bloomBuf.put(bloom1.filterBytes)
+            writeFrameSafe(clientSocket, network.disaster.management.transport.BleMeshSupervisor.MSG_BLOOM_SUMMARY, bloomBuf.array())
+
+            // 4. Send encrypted tactical message packet (4,096 bytes)
+            val msgJson = JSONObject().apply {
+                put("id", UUID.randomUUID().toString())
+                put("groupId", "GROUP_PUBLIC_BROADCAST")
+                put("senderName", "Civilian-Phone1")
+                put("content", "🟢 Off-grid BLE communication confirmed without Hotspot or Wi-Fi!")
+                put("type", "TEXT")
+                put("timestamp", System.currentTimeMillis())
+                put("isEmergency", false)
+            }.toString().toByteArray(Charsets.UTF_8)
+
+            val groupKey = phone1.groups["GROUP_PUBLIC_BROADCAST"]!!.secretKey
+            val nonce = ByteArray(12).also { secureRandom.nextBytes(it) }
+            val aad = "DISASTER-MESH-V1".toByteArray(Charsets.UTF_8)
+            val (ciphertext, macTag) = hybridEngine.encryptPayloadTier1(groupKey, nonce, aad, msgJson)
+
+            val envelope = EnvelopeFormat.Tier1Envelope(
+                hopLimit = 7.toByte(),
+                creationEpoch = System.currentTimeMillis(),
+                ttlExpiry = System.currentTimeMillis() + 86400000L,
+                powDifficulty = 2,
+                powNonce = 0,
+                bundleId = ByteArray(32).also { secureRandom.nextBytes(it) },
+                rollingRecipientTag = phone2.recipientTag,
+                ephemeralX25519Pub = ByteArray(32).also { secureRandom.nextBytes(it) },
+                mlKemCiphertext = ByteArray(1088),
+                nonce = nonce,
+                bucketLength = ciphertext.size,
+                encryptedBody = ciphertext,
+                macTag = macTag
+            )
+            val serialized = EnvelopeFormat.serializeTier1(envelope)
+            val solvedNonce = EnvelopeFormat.solvePoW(serialized, 2)
+            envelope.powNonce = solvedNonce
+            val finalPacket = EnvelopeFormat.serializeTier1(envelope)
+            assertEquals(4096, finalPacket.size)
+
+            writeFrameSafe(clientSocket, network.disaster.management.transport.BleMeshSupervisor.MSG_BUNDLE_PAYLOAD, finalPacket)
+
+            // Wait for receiver to process
+            val start = System.currentTimeMillis()
+            while (phone2.messages.isEmpty() && System.currentTimeMillis() - start < 4000) {
+                Thread.sleep(50)
+            }
+
+            assertTrue("Client should connect to dynamically advertised L2CAP channel", clientConnected)
+            assertTrue("Server should receive Bloom filter summary", receivedBloomSummary)
+            assertEquals("Phone2 should receive and decrypt message over BLE channel", 1, phone2.messages.size)
+            assertEquals("Civilian-Phone1", phone2.messages[0].senderName)
+            assertTrue(phone2.messages[0].content.contains("Off-grid BLE communication confirmed"))
+
+            clientSocket.close()
+            server.close()
+        }
 }

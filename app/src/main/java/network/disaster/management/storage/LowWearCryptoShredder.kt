@@ -51,9 +51,9 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
         super.onOpen(db)
         try {
             // NIST SP 800-88 / High-Assurance SQLite Hardening Pragmas
-            db.execSQL("PRAGMA secure_delete = ON;")
-            db.execSQL("PRAGMA journal_mode = WAL;")
-            db.execSQL("PRAGMA foreign_keys = ON;")
+            db.rawQuery("PRAGMA secure_delete = ON;", null)?.close()
+            db.rawQuery("PRAGMA journal_mode = WAL;", null)?.close()
+            db.rawQuery("PRAGMA foreign_keys = ON;", null)?.close()
 
             // Structural B-Tree Attestation
             val cursor = db.rawQuery("PRAGMA quick_check;", null)

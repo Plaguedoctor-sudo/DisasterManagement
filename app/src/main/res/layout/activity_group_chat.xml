@@ -21,7 +21,7 @@
             android:layout_height="40dp"
             android:background="?android:attr/selectableItemBackground"
             android:src="@android:drawable/ic_menu_revert"
-            android:tint="#FFFFFF"
+            app:tint="#FFFFFF"
             android:layout_marginEnd="10dp" />
 
         <LinearLayout
@@ -54,7 +54,7 @@
             android:layout_height="40dp"
             android:background="?android:attr/selectableItemBackground"
             android:src="@android:drawable/ic_lock_silent_mode_off"
-            android:tint="#FFA000"
+            app:tint="#FFA000"
             android:layout_marginEnd="6dp" />
 
         <ImageButton
@@ -63,7 +63,7 @@
             android:layout_height="40dp"
             android:background="?android:attr/selectableItemBackground"
             android:src="@android:drawable/ic_menu_share"
-            android:tint="#00FF66"
+            app:tint="#00FF66"
             android:layout_marginEnd="6dp" />
 
         <ImageButton
@@ -72,7 +72,7 @@
             android:layout_height="40dp"
             android:background="?android:attr/selectableItemBackground"
             android:src="@android:drawable/ic_menu_delete"
-            android:tint="#FF4444" />
+            app:tint="#FF4444" />
     </LinearLayout>
 
     <!-- Rapid Incident Coordination & Roll Call Bar -->
@@ -162,7 +162,7 @@
             android:layout_height="40dp"
             android:background="?android:attr/selectableItemBackground"
             android:src="@android:drawable/ic_menu_upload"
-            android:tint="#60A5FA" />
+            app:tint="#60A5FA" />
 
         <ImageButton
             android:id="@+id/btnRecordVoice"
@@ -170,7 +170,7 @@
             android:layout_height="40dp"
             android:background="?android:attr/selectableItemBackground"
             android:src="@android:drawable/ic_btn_speak_now"
-            android:tint="#FFA000"
+            app:tint="#FFA000"
             android:layout_marginStart="4dp" />
 
         <EditText
@@ -192,7 +192,7 @@
             android:layout_height="44dp"
             android:background="?android:attr/selectableItemBackground"
             android:src="@android:drawable/ic_menu_send"
-            android:tint="#00FF66" />
+            app:tint="#00FF66" />
     </LinearLayout>
 
 </LinearLayout>

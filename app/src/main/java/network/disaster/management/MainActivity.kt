@@ -58,6 +58,8 @@ class MainActivity : AppCompatActivity() {
     private val hybridEngine = HybridEngine()
     private val acousticModem = FastFskModem()
     private val secureRandom = SecureRandom()
+    private val simEngine = network.disaster.management.simulation.SurvivorSimulationEngine()
+    private var mapTacticalView: network.disaster.management.ui.TacticalLocalMapView? = null
 
     private var sessionKeyBufferAddress: Long = 0L
     private val localRecipientTag = ByteArray(16).apply {
@@ -112,8 +114,10 @@ class MainActivity : AppCompatActivity() {
         gpsHelper = GpsBeaconHelper(this)
 
         setupPermissionBanner()
+        setupStopSwitch()
         setupTabs()
         setupBroadcastFeed()
+        setupTacticalMapAndSimulation()
         setupGroupsTab()
         setupMediaTab()
         setupRelaysTab()
@@ -124,14 +128,30 @@ class MainActivity : AppCompatActivity() {
         startPeriodicRefresh()
     }
 
+    private fun setupStopSwitch() {
+        val btnStopApp = findViewById<Button>(R.id.btnStopApp)
+        btnStopApp?.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("🛑 STOP WHOLE APPLICATION?")
+                .setMessage("This emergency stop switch will immediately halt all Bluetooth mesh radios, cease background scanning services, release native locked memory, and terminate the application process.")
+                .setPositiveButton("STOP & EXIT") { _, _ ->
+                    network.disaster.management.system.AppStopManager.stopWholeApp(this@MainActivity, shredder)
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+    }
+
     private fun setupTabs() {
         val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
         val tabBroadcast = findViewById<View>(R.id.layoutTabBroadcast)
+        val tabMap = findViewById<View>(R.id.layoutTabMap)
         val tabGroups = findViewById<View>(R.id.layoutTabGroups)
         val tabMedia = findViewById<View>(R.id.layoutTabMedia)
         val tabRelays = findViewById<View>(R.id.layoutTabRelays)
 
         tabLayout.addTab(tabLayout.newTab().setText("Feed"))
+        tabLayout.addTab(tabLayout.newTab().setText("Map & Sim"))
         tabLayout.addTab(tabLayout.newTab().setText("Groups"))
         tabLayout.addTab(tabLayout.newTab().setText("Media Share"))
         tabLayout.addTab(tabLayout.newTab().setText("Relays"))
@@ -139,6 +159,7 @@ class MainActivity : AppCompatActivity() {
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 tabBroadcast.visibility = View.GONE
+                tabMap?.visibility = View.GONE
                 tabGroups.visibility = View.GONE
                 tabMedia.visibility = View.GONE
                 tabRelays.visibility = View.GONE
@@ -149,11 +170,15 @@ class MainActivity : AppCompatActivity() {
                         loadBroadcastMessages()
                     }
                     1 -> {
+                        tabMap?.visibility = View.VISIBLE
+                        updateSimulationUi()
+                    }
+                    2 -> {
                         tabGroups.visibility = View.VISIBLE
                         loadGroups()
                     }
-                    2 -> tabMedia.visibility = View.VISIBLE
-                    3 -> {
+                    3 -> tabMedia.visibility = View.VISIBLE
+                    4 -> {
                         tabRelays.visibility = View.VISIBLE
                         updateStorageQuotaDisplay()
                     }
@@ -163,6 +188,338 @@ class MainActivity : AppCompatActivity() {
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
+    }
+
+    private fun setupTacticalMapAndSimulation() {
+        mapTacticalView = findViewById(R.id.mapTacticalView)
+        mapTacticalView?.simulationEngine = simEngine
+
+        val btnToggleStealth = findViewById<Button>(R.id.btnSimToggleStealth)
+        val btnMicroBurst = findViewById<Button>(R.id.btnSimMicroBurst)
+        val btnStep = findViewById<Button>(R.id.btnSimStep)
+        val btnWater = findViewById<Button>(R.id.btnSimScavengeWater)
+        val btnMed = findViewById<Button>(R.id.btnSimScavengeMed)
+        val btnExtraction = findViewById<Button>(R.id.btnSimExtraction)
+        val btnZoomIn = findViewById<Button>(R.id.btnMapZoomIn)
+        val btnZoomOut = findViewById<Button>(R.id.btnMapZoomOut)
+        val btnInventory = findViewById<Button>(R.id.btnSimInventory)
+        val btnHighlight = findViewById<Button>(R.id.btnSimHighlight)
+        val btnHostileIntel = findViewById<Button>(R.id.btnSimHostileIntel)
+
+        btnToggleStealth?.setOnClickListener {
+            val isStealth = simEngine.toggleRadioSilence()
+            network.disaster.management.transport.BleMeshSupervisor.shared?.setStealthMode(isStealth)
+            updateSimulationUi()
+            val status = if (isStealth) "Radio Silence Active (0m RF Footprint)" else "Active Mesh Restored (~65m RF Footprint)"
+            Toast.makeText(this, status, Toast.LENGTH_SHORT).show()
+        }
+
+        btnMicroBurst?.setOnClickListener {
+            val (success, detail) = simEngine.triggerMicroBurstSos()
+            // Micro-burst 4,096-byte distress packet through BLE mesh supervisor
+            val dummyPacket = ByteArray(4096) { 0xD1.toByte() }
+            network.disaster.management.transport.BleMeshSupervisor.shared?.burstTransmit(dummyPacket, 150L)
+            updateSimulationUi()
+            Toast.makeText(this, detail, Toast.LENGTH_LONG).show()
+        }
+
+        btnStep?.setOnClickListener {
+            simEngine.stepSimulation()
+            updateSimulationUi()
+        }
+
+        btnWater?.setOnClickListener {
+            val res = simEngine.scavengeNearestSupply(network.disaster.management.map.SupplyType.POTABLE_WATER)
+            updateSimulationUi()
+            Toast.makeText(this, res, Toast.LENGTH_SHORT).show()
+        }
+
+        btnMed?.setOnClickListener {
+            val res = simEngine.scavengeNearestSupply(network.disaster.management.map.SupplyType.TRAUMA_KIT)
+            updateSimulationUi()
+            Toast.makeText(this, res, Toast.LENGTH_SHORT).show()
+        }
+
+        btnExtraction?.setOnClickListener {
+            val res = simEngine.scavengeNearestSupply(network.disaster.management.map.SupplyType.SHELTER_EXTRACTION)
+            updateSimulationUi()
+            Toast.makeText(this, res, Toast.LENGTH_LONG).show()
+        }
+
+        btnInventory?.setOnClickListener {
+            showInventoryManagerDialog()
+        }
+
+        btnHighlight?.setOnClickListener {
+            showResourceHighlightDialog()
+        }
+
+        btnHostileIntel?.setOnClickListener {
+            showHostileIntelDialog()
+        }
+
+        btnZoomIn?.setOnClickListener {
+            mapTacticalView?.zoomIn()
+        }
+
+        btnZoomOut?.setOnClickListener {
+            mapTacticalView?.zoomOut()
+        }
+
+        updateSimulationUi()
+    }
+
+    private fun updateSimulationUi() {
+        val s = simEngine.survivor
+        val assessment = simEngine.evaluateTacticalSituation()
+
+        findViewById<TextView>(R.id.tvSimThreatBanner)?.apply {
+            text = assessment.advisoryText
+            setTextColor(
+                when (assessment.threatLevel) {
+                    network.disaster.management.map.ThreatLevel.STEALTH_SECURE -> 0xFF00FF66.toInt()
+                    network.disaster.management.map.ThreatLevel.ELEVATED_RISK -> 0xFFFFCC00.toInt()
+                    network.disaster.management.map.ThreatLevel.CRITICAL_TARGETED -> 0xFFFF2222.toInt()
+                }
+            )
+        }
+
+        findViewById<TextView>(R.id.tvSimVitals)?.text =
+            "❤️ HP: ${s.health}% | 💧 Water: ${s.hydration}% | 🥫 Food: ${s.energy}% | 🔋 Bat: ${s.battery}%"
+
+        findViewById<TextView>(R.id.tvSimInventorySummary)?.text =
+            "🎒 INV: 💧 ${s.inventory.waterLiters}L | 🥫 ${s.inventory.foodRations} Rations | 🩹 ${s.inventory.traumaKits} MedKits | 🧪 ${s.inventory.purificationTabs} Tabs | 🔋 ${s.inventory.batteryMah}mAh"
+
+        findViewById<Button>(R.id.btnSimToggleStealth)?.apply {
+            if (s.isRadioSilence) {
+                text = "🔊 RESUME MESH"
+                setBackgroundColor(0xFF1E3A8A.toInt())
+            } else {
+                text = "🔇 RADIO SILENCE"
+                setBackgroundColor(0xFF4A154B.toInt())
+            }
+        }
+
+        findViewById<TextView>(R.id.tvSimIncidentLog)?.text =
+            simEngine.eventLog.firstOrNull() ?: "TACTICAL INTEL: Surveillance active in sector."
+
+        mapTacticalView?.invalidate()
+    }
+
+    private fun showInventoryManagerDialog() {
+        val inv = simEngine.survivor.inventory
+        val options = arrayOf(
+            "💧 Drink Water (-0.5L / +35 Hydration) [Cur: ${inv.waterLiters}L]",
+            "🥫 Eat Ration (-1 Ration / +40 Energy) [Cur: ${inv.foodRations}]",
+            "🩹 Apply Med-Kit (-1 Kit / +50 HP) [Cur: ${inv.traumaKits}]",
+            "🧪 Use Water Purification Tablet (-1 Tab) [Cur: ${inv.purificationTabs}]",
+            "✏️ Adjust Stock Values (Edit Inventory)"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("🎒 Survivor Inventory & Rations")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> {
+                        val ok = simEngine.survivor.drinkWater(0.5)
+                        if (ok) {
+                            simEngine.logEvent("💧 Consumed 0.5L water from backpack. Hydration now ${simEngine.survivor.hydration}%.")
+                            Toast.makeText(this, "Drank 0.5L water", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this, "No water remaining in backpack!", Toast.LENGTH_SHORT).show()
+                        }
+                        updateSimulationUi()
+                    }
+                    1 -> {
+                        val ok = simEngine.survivor.eatRation()
+                        if (ok) {
+                            simEngine.logEvent("🥫 Ate ration. Energy now ${simEngine.survivor.energy}%.")
+                            Toast.makeText(this, "Consumed 1 ration pack", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this, "No rations remaining!", Toast.LENGTH_SHORT).show()
+                        }
+                        updateSimulationUi()
+                    }
+                    2 -> {
+                        val ok = simEngine.survivor.applyTraumaKit()
+                        if (ok) {
+                            simEngine.logEvent("🩹 Applied trauma kit. Health now ${simEngine.survivor.health}%.")
+                            Toast.makeText(this, "Applied trauma kit", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this, "No trauma kits remaining!", Toast.LENGTH_SHORT).show()
+                        }
+                        updateSimulationUi()
+                    }
+                    3 -> {
+                        if (inv.purificationTabs > 0) {
+                            inv.purificationTabs--
+                            simEngine.logEvent("🧪 Purified scrounged water with tablet. Clean supply safe.")
+                            Toast.makeText(this, "Purification tablet used", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this, "No purification tablets left!", Toast.LENGTH_SHORT).show()
+                        }
+                        updateSimulationUi()
+                    }
+                    4 -> showCustomInventoryEditorDialog()
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showCustomInventoryEditorDialog() {
+        val inv = simEngine.survivor.inventory
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 24)
+        }
+
+        val etWater = EditText(this).apply {
+            hint = "Water in Liters (e.g. 3.0)"
+            setText(inv.waterLiters.toString())
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        val etFood = EditText(this).apply {
+            hint = "Food Rations (e.g. 4)"
+            setText(inv.foodRations.toString())
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+        val etMeds = EditText(this).apply {
+            hint = "Trauma Kits (e.g. 2)"
+            setText(inv.traumaKits.toString())
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+        val etTabs = EditText(this).apply {
+            hint = "Purification Tablets (e.g. 10)"
+            setText(inv.purificationTabs.toString())
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+        val etBat = EditText(this).apply {
+            hint = "Battery mAh (e.g. 4500)"
+            setText(inv.batteryMah.toString())
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+
+        layout.addView(TextView(this).apply { text = "Water (Liters):"; setTextColor(0xFFEEEEEE.toInt()) })
+        layout.addView(etWater)
+        layout.addView(TextView(this).apply { text = "Food Rations:"; setTextColor(0xFFEEEEEE.toInt()) })
+        layout.addView(etFood)
+        layout.addView(TextView(this).apply { text = "Trauma Kits:"; setTextColor(0xFFEEEEEE.toInt()) })
+        layout.addView(etMeds)
+        layout.addView(TextView(this).apply { text = "Purification Tablets:"; setTextColor(0xFFEEEEEE.toInt()) })
+        layout.addView(etTabs)
+        layout.addView(TextView(this).apply { text = "Battery Power (mAh):"; setTextColor(0xFFEEEEEE.toInt()) })
+        layout.addView(etBat)
+
+        AlertDialog.Builder(this)
+            .setTitle("✏️ Update Backpack Inventory")
+            .setView(layout)
+            .setPositiveButton("Save") { _, _ ->
+                inv.waterLiters = etWater.text.toString().toDoubleOrNull() ?: inv.waterLiters
+                inv.foodRations = etFood.text.toString().toIntOrNull() ?: inv.foodRations
+                inv.traumaKits = etMeds.text.toString().toIntOrNull() ?: inv.traumaKits
+                inv.purificationTabs = etTabs.text.toString().toIntOrNull() ?: inv.purificationTabs
+                inv.batteryMah = etBat.text.toString().toIntOrNull() ?: inv.batteryMah
+                simEngine.logEvent("🎒 Inventory manually updated by survivor.")
+                updateSimulationUi()
+                Toast.makeText(this, "Inventory updated", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showResourceHighlightDialog() {
+        val caches = simEngine.supplyCaches
+        val labels = caches.map { sc ->
+            val star = if (sc.isHighlighted) "⭐ " else "⭕ "
+            val dist = simEngine.survivor.location.distanceTo(sc.location).toInt()
+            "$star${sc.name} (${dist}m) [${if (sc.isHighlighted) "HIGHLIGHTED" else "Normal"}]"
+        }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("⭐ Highlight Tactical Resources")
+            .setItems(labels) { _, which ->
+                val chosen = caches[which]
+                val newState = mapTacticalView?.toggleHighlightSupply(chosen.id) ?: !chosen.isHighlighted
+                chosen.isHighlighted = newState
+                val status = if (newState) "Highlighted on HUD" else "Highlight removed"
+                simEngine.logEvent("⭐ Toggled highlight on ${chosen.name}: $status")
+                updateSimulationUi()
+                Toast.makeText(this, "${chosen.name}: $status", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showHostileIntelDialog() {
+        val detector = network.disaster.management.security.HostileActorDetector.shared
+        val profiles = detector.getAllProfiles()
+        val traps = detector.getDetectedAmbushTraps()
+
+        val sb = StringBuilder()
+        sb.append("🛡️ COUNTER-INTEL DETECTION REPORT\n\n")
+
+        if (traps.isNotEmpty()) {
+            sb.append("💀 ACTIVE AMBUSH TRAPS (${traps.size}):\n")
+            for (t in traps) {
+                sb.append("• ${t.hostileSender}: \"${t.claimTitle}\"\n  → Location is ${t.distToHostilePatrolMeters.toInt()}m from hostile killzone!\n")
+            }
+            sb.append("\n")
+        } else {
+            sb.append("💀 No ambush bait traps currently active.\n\n")
+        }
+
+        if (profiles.isNotEmpty()) {
+            sb.append("👥 MONITORED NETWORK ACTORS (${profiles.size}):\n")
+            for (p in profiles) {
+                val icon = when (p.classification) {
+                    network.disaster.management.map.ActorClassification.HOSTILE_INFILTRATOR -> "🚨 HOSTILE"
+                    network.disaster.management.map.ActorClassification.SUSPICIOUS_ACTOR -> "⚠️ SUSPICIOUS"
+                    network.disaster.management.map.ActorClassification.VERIFIED_CIVILIAN -> "🟢 VERIFIED"
+                    network.disaster.management.map.ActorClassification.UNVERIFIED_CIVILIAN -> "⚪ UNVERIFIED"
+                }
+                sb.append("[$icon] ${p.senderName} (Trust: ${p.trustScore}%)\n")
+                for (flag in p.anomalyFlags) {
+                    sb.append("   - $flag\n")
+                }
+            }
+        } else {
+            sb.append("👥 No peer behavioral telemetry collected yet.\nIncoming mesh broadcasts are automatically evaluated for ambush lures and spoofing.")
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("🛡️ Hostile Infiltration Intel")
+            .setMessage(sb.toString())
+            .setPositiveButton("OK", null)
+            .setNeutralButton("Simulate Hostile Lure Probe") { _, _ ->
+                simulateHostileInfiltrationProbe()
+            }
+            .show()
+    }
+
+    private fun simulateHostileInfiltrationProbe() {
+        // Creates a simulated hostile infiltrator trying to lure civilians into the drone patrol zone
+        val hostileSender = "MilitiaRecon-04"
+        val droneThreat = simEngine.hostiles.firstOrNull()
+        val trapLoc = droneThreat?.location ?: simEngine.survivor.location
+        val lureMsg = FeedMessage(
+            id = UUID.randomUUID().toString(),
+            groupId = "GROUP_PUBLIC_BROADCAST",
+            senderName = hostileSender,
+            content = "SAFE EVACUATION POINT OPEN! FREE WATER & AID AT LOC:${trapLoc.lat},${trapLoc.lon}. ALL SURVIVORS REPORT NOW!",
+            type = MessageType.TEXT,
+            timestamp = System.currentTimeMillis(),
+            isEmergency = true
+        )
+        network.disaster.management.security.HostileActorDetector.shared.analyzeMessage(lureMsg, simEngine.hostiles)
+        lifecycleScope.launch(Dispatchers.IO) {
+            shredder.insertMessage(lureMsg)
+            withContext(Dispatchers.Main) {
+                loadBroadcastMessages()
+                updateSimulationUi()
+                Toast.makeText(this@MainActivity, "🚨 Infiltrator detected & flagged!", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun setupBroadcastFeed() {
@@ -261,6 +618,9 @@ class MainActivity : AppCompatActivity() {
     private fun loadBroadcastMessages() {
         lifecycleScope.launch(Dispatchers.IO) {
             val messages = shredder.getMessages(null)
+            for (msg in messages) {
+                network.disaster.management.security.HostileActorDetector.shared.analyzeMessage(msg, simEngine.hostiles)
+            }
             withContext(Dispatchers.Main) {
                 broadcastAdapter.updateMessages(messages)
             }
@@ -325,7 +685,7 @@ class MainActivity : AppCompatActivity() {
                 val finalSerialized = EnvelopeFormat.serializeTier1(envelope)
 
                 val verdict = router.processIngressPacket(finalSerialized)
-                network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(finalSerialized)
+                network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(finalSerialized)
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Report Broadcasted | $verdict (Pool B)", Toast.LENGTH_SHORT).show()
@@ -369,8 +729,8 @@ class MainActivity : AppCompatActivity() {
             // Store in Pool A (Emergency 50MB quota)
             val verdict = router.processIngressPacket(serialized)
 
-            // Broadcast immediately to connected Wi-Fi hotspot peers
-            network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(serialized)
+            // Broadcast immediately across all active mesh transports (Wi-Fi & BLE)
+            network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(serialized)
 
             // Save message into local feed
             val msg = FeedMessage(
@@ -577,7 +937,7 @@ class MainActivity : AppCompatActivity() {
                 packages.forEachIndexed { index, pkg ->
                     shredder.saveFileChunk(pkg.fileId, pkg.chunkIndex, pkg.totalChunks, pkg.chunkData)
                     router.processIngressPacket(pkg.packet4k)
-                    network.disaster.management.transport.WifiMeshSupervisor.shared?.broadcastPacket(pkg.packet4k)
+                    network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(pkg.packet4k)
                     withContext(Dispatchers.Main) {
                         pb.progress = index + 1
                     }
@@ -839,29 +1199,43 @@ class MainActivity : AppCompatActivity() {
             while (isActive) {
                 delay(2500)
                 val messages = shredder.getMessages(null)
+                for (msg in messages) {
+                    network.disaster.management.security.HostileActorDetector.shared.analyzeMessage(msg, simEngine.hostiles)
+                }
                 val wifiPeers = network.disaster.management.transport.WifiMeshSupervisor.shared?.getActivePeerCount() ?: 0
                 val peerIps = network.disaster.management.transport.WifiMeshSupervisor.shared?.getActivePeerIps() ?: emptyList()
                 val myIps = network.disaster.management.transport.WifiMeshSupervisor.shared?.getLocalIps() ?: emptyList()
+                val blePeers = network.disaster.management.transport.BleMeshSupervisor.shared?.getActivePeerCount() ?: 0
 
                 withContext(Dispatchers.Main) {
                     broadcastAdapter.updateMessages(messages)
                     updateStorageQuotaDisplay()
 
-                    val statusMsg = if (wifiPeers > 0) {
-                        "Status: Wi-Fi Hotspot Active ($wifiPeers Peer${if (wifiPeers > 1) "s" else ""}: ${peerIps.joinToString(", ")}) | Quotas Enforced"
-                    } else if (myIps.isNotEmpty()) {
-                        "Status: Wi-Fi Mesh Ready (${myIps.first()}) | BLE Active | Searching Hotspot..."
-                    } else {
-                        "Status: Mesh Active (BLE & Acoustic) | Tri-Pool Quotas Enforced"
+                    val statusMsg = when {
+                        wifiPeers > 0 && blePeers > 0 ->
+                            "Status: Mesh Active (Wi-Fi: $wifiPeers, BLE: $blePeers) | Quotas Enforced"
+                        wifiPeers > 0 ->
+                            "Status: Wi-Fi Hotspot Active ($wifiPeers Peer${if (wifiPeers > 1) "s" else ""}: ${peerIps.joinToString(", ")}) | Quotas Enforced"
+                        blePeers > 0 ->
+                            "Status: BLE Mesh Active ($blePeers Peer${if (blePeers > 1) "s" else ""}) | Wi-Fi Off | Quotas Enforced"
+                        myIps.isNotEmpty() ->
+                            "Status: Wi-Fi Ready (${myIps.first()}) | BLE Active | Searching Peers..."
+                        else ->
+                            "Status: Mesh Active (BLE & Acoustic) | Tri-Pool Quotas Enforced"
                     }
                     findViewById<TextView>(R.id.tvStatus)?.text = statusMsg
 
-                    val wifiDetails = if (wifiPeers > 0) {
-                        "Connected Peers: ${peerIps.joinToString(", ")} | Port: 42425"
-                    } else if (myIps.isNotEmpty()) {
-                        "Listening on: ${myIps.joinToString(", ")}:42425 | Searching hotspot..."
-                    } else {
-                        "Wi-Fi Disconnected | Connect to Wi-Fi or Hotspot"
+                    val wifiDetails = when {
+                        wifiPeers > 0 && blePeers > 0 ->
+                            "Wi-Fi: ${peerIps.joinToString(", ")} | BLE Peers: $blePeers Connected"
+                        wifiPeers > 0 ->
+                            "Connected Wi-Fi Peers: ${peerIps.joinToString(", ")} | Port: 42425"
+                        blePeers > 0 ->
+                            "BLE Mesh Active: $blePeers Peer${if (blePeers > 1) "s" else ""} Connected (Zero-Wi-Fi Mode)"
+                        myIps.isNotEmpty() ->
+                            "Listening on: ${myIps.joinToString(", ")}:42425 | BLE Scanning Active"
+                        else ->
+                            "Off-Grid Mode | BLE & Acoustic Active (Wi-Fi Not Required)"
                     }
                     findViewById<TextView>(R.id.tvWifiMeshDetails)?.text = wifiDetails
                 }
