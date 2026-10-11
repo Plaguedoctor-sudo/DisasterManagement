@@ -187,16 +187,26 @@ class OpticalFountainActivity : AppCompatActivity() {
             try {
                 val result = qrReader.decode(binaryBmp)
                 val text = result.text
-                if (text != null && text.startsWith("LT:")) {
-                    val now = System.currentTimeMillis()
-                    val droplet = decodeDropletFromString(text)
-                    if (droplet != null) {
-                        // Avoid ingesting identical frame within 200ms
-                        if (droplet.seed != lastDecodedSeed || now - lastDecodedTime > 200L) {
-                            lastDecodedSeed = droplet.seed
-                            lastDecodedTime = now
-                            runOnUiThread {
-                                ingestDropletToSolver(droplet)
+                if (text != null) {
+                    if (text.startsWith("DISASTER_GRP:")) {
+                        val imported = shredder.importGroupFromQr(text)
+                        runOnUiThread {
+                            if (imported != null) {
+                                Toast.makeText(this, "✅ Joined Group via QR: ${imported.name}", Toast.LENGTH_LONG).show()
+                                finish()
+                            }
+                        }
+                    } else if (text.startsWith("LT:")) {
+                        val now = System.currentTimeMillis()
+                        val droplet = decodeDropletFromString(text)
+                        if (droplet != null) {
+                            // Avoid ingesting identical frame within 200ms
+                            if (droplet.seed != lastDecodedSeed || now - lastDecodedTime > 200L) {
+                                lastDecodedSeed = droplet.seed
+                                lastDecodedTime = now
+                                runOnUiThread {
+                                    ingestDropletToSolver(droplet)
+                                }
                             }
                         }
                     }

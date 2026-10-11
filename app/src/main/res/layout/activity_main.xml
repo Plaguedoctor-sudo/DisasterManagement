@@ -37,6 +37,35 @@
                 android:text="Status: Mesh Operational • 4KB Profile"
                 android:textColor="#00FF66"
                 android:textSize="11sp" />
+
+            <LinearLayout
+                android:id="@+id/layoutUserIdentity"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="2dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:id="@+id/tvUserCallsign"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="👤 Callsign: ..."
+                    android:textColor="#93C5FD"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" [✏️ Edit]"
+                    android:textColor="#60A5FA"
+                    android:textSize="10sp"
+                    android:layout_marginStart="4dp" />
+            </LinearLayout>
         </LinearLayout>
 
         <Button
@@ -215,9 +244,122 @@
                         android:textColor="#FFFFFF"
                         android:textSize="11sp"
                         android:textStyle="bold"
+                        android:layout_marginEnd="6dp"
+                        app:cornerRadius="6dp" />
+
+                    <Button
+                        android:id="@+id/btnChangeCallsign"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:backgroundTint="#0284C7"
+                        android:text="👤 MY NAME: ..."
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:layout_marginEnd="6dp"
+                        app:cornerRadius="6dp" />
+
+                    <Button
+                        android:id="@+id/btnManageFriends"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:backgroundTint="#0F766E"
+                        android:text="👥 FRIENDS &amp; TRUST"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:layout_marginStart="6dp"
+                        app:cornerRadius="6dp" />
+
+                    <Button
+                        android:id="@+id/btnPropagateApp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:backgroundTint="#2563EB"
+                        android:text="📲 SHARE APP / OFFLINE INSTALL"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:layout_marginStart="6dp"
                         app:cornerRadius="6dp" />
                 </LinearLayout>
             </HorizontalScrollView>
+
+            <!-- Replying to thread banner -->
+            <LinearLayout
+                android:id="@+id/layoutReplyBanner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="#1E293B"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tvReplyingToPreview"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="↩️ Replying to @Civilian: 'Message...'"
+                    android:textColor="#93C5FD"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <Button
+                    android:id="@+id/btnCancelReply"
+                    android:layout_width="wrap_content"
+                    android:layout_height="28dp"
+                    android:backgroundTint="#475569"
+                    android:text="✕ Cancel"
+                    android:textColor="#F1F5F9"
+                    android:textSize="10sp"
+                    android:paddingHorizontal="8dp"
+                    android:minHeight="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp" />
+            </LinearLayout>
+
+            <!-- Voluntary Location Attachment Preview Banner -->
+            <LinearLayout
+                android:id="@+id/layoutLocationAttachmentPreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#0A2540"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tvLocationAttachmentPreview"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="📍 Attached Location: [LOC:ACQUIRING...]"
+                    android:textColor="#38BDF8"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <Button
+                    android:id="@+id/btnRemoveLocationAttachment"
+                    android:layout_width="wrap_content"
+                    android:layout_height="28dp"
+                    android:backgroundTint="#1E293B"
+                    android:text="✕ Remove"
+                    android:textColor="#E2E8F0"
+                    android:textSize="10sp"
+                    android:paddingHorizontal="8dp"
+                    android:minHeight="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp" />
+            </LinearLayout>
 
             <!-- Broadcast Input Box -->
             <LinearLayout
@@ -227,6 +369,16 @@
                 android:orientation="horizontal"
                 android:padding="10dp"
                 android:gravity="center_vertical">
+
+                <ImageButton
+                    android:id="@+id/btnAttachLocation"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:contentDescription="Attach Location"
+                    android:src="@android:drawable/ic_menu_mylocation"
+                    app:tint="#38BDF8" />
 
                 <EditText
                     android:id="@+id/etBroadcastInput"
@@ -264,12 +416,30 @@
                 android:paddingTop="10dp"
                 android:paddingBottom="4dp" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvBroadcastFeed"
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1"
-                android:paddingVertical="4dp" />
+                android:layout_weight="1">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvBroadcastFeed"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingVertical="4dp" />
+
+                <TextView
+                    android:id="@+id/tvEmptyBroadcastFeed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:padding="24dp"
+                    android:text="📡 No broadcast messages yet.\nTap '🟢 I AM SAFE' or compose a message below to broadcast to nearby mesh devices."
+                    android:textColor="#777777"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+            </FrameLayout>
         </LinearLayout>
 
         <!-- TAB 2: SIMPLIFIED LOCAL AREA MAP & TRAPPED SURVIVOR SIMULATION -->
@@ -555,12 +725,30 @@
                     app:cornerRadius="6dp" />
             </LinearLayout>
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvGroups"
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1"
-                android:paddingVertical="4dp" />
+                android:layout_weight="1">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvGroups"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingVertical="4dp" />
+
+                <TextView
+                    android:id="@+id/tvEmptyGroups"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:padding="24dp"
+                    android:text="👥 No custom groups created yet.\nTap 'Create Group' or 'Join via QR' to collaborate securely."
+                    android:textColor="#777777"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+            </FrameLayout>
         </LinearLayout>
 
         <!-- TAB 3: MEDIA & FILE SHARING (POOL C) -->
@@ -777,12 +965,59 @@
                             android:textSize="11sp" />
                     </LinearLayout>
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="8dp">
+
+                        <Button
+                            android:id="@+id/btnWifiDirectConnect"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:text="📡 Direct P2P Connect (Zero-Network)"
+                            android:backgroundTint="#1D4ED8"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp" />
+
+                        <Button
+                            android:id="@+id/btnEmergencyHotspot"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:text="⚡ Host / Join Hotspot"
+                            android:backgroundTint="#7C3AED"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvWifiDirectDetails"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Wi-Fi Direct P2P: Ready for direct off-grid pairing"
+                        android:textColor="#38BDF8"
+                        android:textSize="11sp"
+                        android:layout_marginBottom="8dp" />
+
                     <Switch
                         android:id="@+id/swBle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Bluetooth Low Energy L2CAP CoC"
+                        android:text="Bluetooth Low Energy (GATT + L2CAP CoC)"
+                        android:checked="true"
                         android:textColor="#FFFFFF" />
+
+                    <TextView
+                        android:id="@+id/tvBleMeshDetails"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="BLE Mesh: Active | Bi-directional Full Duplex"
+                        android:textColor="#A78BFA"
+                        android:textSize="11sp"
+                        android:layout_marginBottom="8dp" />
 
                     <Switch
                         android:id="@+id/swMic"

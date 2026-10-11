@@ -162,6 +162,19 @@ class HostileActorDetector {
         return ambushTraps.toList()
     }
 
+    fun setPeerTrust(senderName: String, trustScore: Int, classification: ActorClassification? = null) {
+        val profile = peerProfiles.computeIfAbsent(senderName) {
+            PeerTrustProfile(senderName = senderName, trustScore = trustScore)
+        }
+        profile.trustScore = trustScore.coerceIn(0, 100)
+        profile.classification = classification ?: when {
+            profile.trustScore < 40 -> ActorClassification.HOSTILE_INFILTRATOR
+            profile.trustScore < 70 -> ActorClassification.SUSPICIOUS_ACTOR
+            profile.trustScore >= 80 -> ActorClassification.VERIFIED_CIVILIAN
+            else -> ActorClassification.UNVERIFIED_CIVILIAN
+        }
+    }
+
     fun clear() {
         peerProfiles.clear()
         ambushTraps.clear()

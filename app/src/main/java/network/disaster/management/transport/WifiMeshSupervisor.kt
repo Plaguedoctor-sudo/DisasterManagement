@@ -228,8 +228,11 @@ class WifiMeshSupervisor(
         // 1. Gateway IP from DHCP
         getGatewayIp()?.let { candidateIps.add(it) }
 
-        // 2. Default Android Hotspot AP address
+        // 2. Default Android / Wi-Fi Direct / iOS Hotspot AP addresses
         candidateIps.add("192.168.43.1")
+        candidateIps.add("192.168.49.1")
+        candidateIps.add("172.20.10.1")
+        candidateIps.add("192.168.137.1")
 
         // 3. ARP cache connected devices
         candidateIps.addAll(getArpConnectedIps())

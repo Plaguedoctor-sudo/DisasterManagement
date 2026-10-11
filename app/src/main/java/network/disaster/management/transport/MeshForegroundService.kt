@@ -23,11 +23,13 @@ class MeshForegroundService : Service() {
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.Default + job)
     private var wakeLock: PowerManager.WakeLock? = null
+    private var apkServer: ApkPropagationServer? = null
     private lateinit var batteryManager: OemBatteryManager
     private lateinit var shredder: LowWearCryptoShredder
     private lateinit var router: TriPoolRouter
     private lateinit var bleSupervisor: BleMeshSupervisor
     private lateinit var wifiSupervisor: WifiMeshSupervisor
+    private lateinit var p2pSupervisor: WifiDirectMeshSupervisor
     private val acousticModem = FastFskModem()
 
     private val localRecipientTag = ByteArray(16).apply {
@@ -41,10 +43,16 @@ class MeshForegroundService : Service() {
         router = TriPoolRouter(shredder, localRecipientTag)
         bleSupervisor = BleMeshSupervisor(this, shredder, router)
         wifiSupervisor = WifiMeshSupervisor(this, shredder, router)
+        p2pSupervisor = WifiDirectMeshSupervisor(this, shredder, router)
 
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Disaster:CoreExecutionWakeLock").apply {
             acquire(24 * 3600 * 1000L)
+        }
+
+        apkServer = ApkPropagationServer(this).also {
+            ApkPropagationServer.shared = it
+            it.start()
         }
 
         val channel = NotificationChannel("disaster_daemon", "Disaster Mesh Node Daemon", NotificationManager.IMPORTANCE_LOW)
@@ -52,7 +60,7 @@ class MeshForegroundService : Service() {
 
         val notif = NotificationCompat.Builder(this, "disaster_daemon")
             .setContentTitle("Civil Disaster Telemetry Service")
-            .setContentText("Mesh transceivers active (Wi-Fi Hotspot Mesh, BLE & Ultrasonic).")
+            .setContentText("Mesh transceivers active (Wi-Fi Direct, Hotspot, BLE & Ultrasonic).")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setOngoing(true)
             .build()
@@ -74,17 +82,9 @@ class MeshForegroundService : Service() {
             } catch (_: Throwable) {}
         }
 
-        // 1. Start autonomous Wi-Fi Hotspot / LAN mesh sync
-        try {
-            wifiSupervisor.startMesh()
-        } catch (_: Throwable) {}
+        startAllTransceivers()
 
-        // 2. Start autonomous BLE mesh discovery and epidemic sync
-        try {
-            bleSupervisor.startMesh()
-        } catch (_: Throwable) {}
-
-        // 3. Start acoustic background ultrasonic listener
+        // Acoustic background ultrasonic listener
         try {
             acousticModem.startAcousticListener { distressBytes ->
                 scope.launch(Dispatchers.IO) {
@@ -103,7 +103,7 @@ class MeshForegroundService : Service() {
             }
         } catch (_: Throwable) {}
 
-        // 4. Heartbeat loop
+        // Heartbeat loop
         scope.launch {
             while (isActive) {
                 batteryManager.scheduleHeartbeat()
@@ -112,12 +112,36 @@ class MeshForegroundService : Service() {
         }
     }
 
+    private fun startAllTransceivers() {
+        // 1. Wi-Fi Hotspot / LAN mesh sync
+        try {
+            wifiSupervisor.startMesh()
+        } catch (_: Throwable) {}
+
+        // 2. Wi-Fi Direct (P2P zero-network) mesh
+        try {
+            p2pSupervisor.startMesh()
+        } catch (_: Throwable) {}
+
+        // 3. Autonomous BLE mesh discovery and epidemic sync
+        try {
+            bleSupervisor.startMesh()
+        } catch (_: Throwable) {}
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startAllTransceivers()
+        return START_STICKY
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         job.cancel()
         wifiSupervisor.stopMesh()
+        p2pSupervisor.stopMesh()
         bleSupervisor.stopMesh()
         acousticModem.stopAcousticListener()
+        apkServer?.stop()
         wakeLock?.let { if (it.isHeld) it.release() }
     }
 

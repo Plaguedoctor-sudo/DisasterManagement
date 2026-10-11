@@ -302,4 +302,28 @@ class CoreFeasibilityTest {
         assertEquals(network.disaster.management.model.MessageType.TEXT, msg.type)
         assertFalse(msg.isEmergency)
     }
+
+    @Test
+    fun testUserIdentitySanitizationAndDefaultNames() {
+        val manager = network.disaster.management.storage.UserIdentityManager
+
+        // Test default user name
+        val defaultName = manager.getDefaultUserName()
+        assertTrue("Default name must start with Civilian-", defaultName.startsWith("Civilian-"))
+
+        // Test sanitization
+        assertEquals("Medic-1", manager.sanitizeName("  Medic-1  "))
+        assertEquals("Sarah Connor", manager.sanitizeName("Sarah Connor\n\r"))
+        assertEquals("CleanName", manager.sanitizeName("\"@CleanName:\""))
+
+        // Test max length truncation
+        val longName = "A".repeat(50)
+        val sanitizedLong = manager.sanitizeName(longName)
+        assertEquals(24, sanitizedLong.length)
+
+        // Test suggestions
+        val suggestions = manager.getSuggestedCallsigns()
+        assertTrue("Suggestions must not be empty", suggestions.isNotEmpty())
+        assertTrue("Suggestions must contain default name", suggestions.contains(defaultName))
+    }
 }

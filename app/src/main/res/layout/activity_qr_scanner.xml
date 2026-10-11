@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Camera Live Preview -->
+    <androidx.camera.view.PreviewView
+        android:id="@+id/qrCameraPreview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Scanner Target Reticle Overlay -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp">
+
+        <!-- Top Header & Controls -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="32dp">
+
+            <ImageButton
+                android:id="@+id/btnBackQr"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_revert"
+                app:tint="#FFFFFF"
+                android:contentDescription="Back" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📷 DISASTER QR SCANNER"
+                    android:textColor="#00FF66"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Scan Group Invite, Friend Request, or Peer Key"
+                    android:textColor="#CCCCCC"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btnToggleTorch"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_day"
+                app:tint="#FDE047"
+                android:contentDescription="Toggle Torch" />
+        </LinearLayout>
+
+        <!-- Viewfinder Target Reticle -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="280dp"
+            android:layout_height="280dp"
+            app:cardBackgroundColor="#10000000"
+            app:cardCornerRadius="16dp"
+            app:strokeColor="#00FF66"
+            app:strokeWidth="3dp">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:id="@+id/tvScanningStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="Align QR Code inside box"
+                    android:textColor="#E2E8F0"
+                    android:textSize="13sp"
+                    android:background="#80000000"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="6dp" />
+            </FrameLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Scanning for DISASTER_GRP or DISASTER_FRIEND codes..."
+            android:textColor="#94A3B8"
+            android:textSize="12sp"
+            android:gravity="center" />
+
+        <!-- Manual Paste Fallback Button -->
+        <Button
+            android:id="@+id/btnManualPasteQr"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginTop="20dp"
+            android:backgroundTint="#334155"
+            android:text="⌨️ Enter / Paste Code Manually"
+            android:textColor="#F1F5F9"
+            android:textSize="12sp"
+            app:cornerRadius="8dp" />
+    </LinearLayout>
+</FrameLayout>

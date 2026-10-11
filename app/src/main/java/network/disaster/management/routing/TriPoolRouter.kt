@@ -165,9 +165,55 @@ class TriPoolRouter(
                             fileSize = json.optLong("fileSize", 0L),
                             mimeType = if (json.has("mimeType")) json.getString("mimeType") else null,
                             timestamp = json.optLong("timestamp", System.currentTimeMillis()),
-                            isEmergency = json.optBoolean("isEmergency", false)
+                            isEmergency = json.optBoolean("isEmergency", false),
+                            replyToId = if (json.has("replyToId") && !json.isNull("replyToId")) json.getString("replyToId") else null,
+                            replyToSender = if (json.has("replyToSender") && !json.isNull("replyToSender")) json.getString("replyToSender") else null,
+                            replyToText = if (json.has("replyToText") && !json.isNull("replyToText")) json.getString("replyToText") else null,
+                            targetPeer = if (json.has("targetPeer") && !json.isNull("targetPeer")) json.getString("targetPeer") else null
                         )
                         db.insertMessage(msg)
+
+                        // Process friend request lifecycle states automatically
+                        when (msg.type) {
+                            network.disaster.management.model.MessageType.FRIEND_REQUEST -> {
+                                val existing = db.getContact(msg.senderName)
+                                if (existing == null || !existing.isFriend) {
+                                    db.saveContact(
+                                        network.disaster.management.model.CivilianContact(
+                                            peerId = msg.senderName,
+                                            displayName = msg.senderName,
+                                            isFriend = false,
+                                            trustScore = 75,
+                                            trustBadge = "PENDING_REQUEST",
+                                            notes = "Incoming Friend Request",
+                                            friendStatus = "PENDING_RECEIVED"
+                                        )
+                                    )
+                                }
+                            }
+                            network.disaster.management.model.MessageType.FRIEND_ACCEPT -> {
+                                db.saveContact(
+                                    network.disaster.management.model.CivilianContact(
+                                        peerId = msg.senderName,
+                                        displayName = msg.senderName,
+                                        isFriend = true,
+                                        trustScore = 95,
+                                        trustBadge = "FRIEND",
+                                        notes = "Friend request accepted",
+                                        friendStatus = "ACCEPTED"
+                                    )
+                                )
+                                network.disaster.management.security.HostileActorDetector.shared.setPeerTrust(
+                                    msg.senderName,
+                                    95,
+                                    network.disaster.management.map.ActorClassification.VERIFIED_CIVILIAN
+                                )
+                            }
+                            network.disaster.management.model.MessageType.FRIEND_REJECT -> {
+                                db.updateFriendStatus(msg.senderName, "REJECTED", isFriend = false)
+                            }
+                            else -> {}
+                        }
                     } catch (_: Exception) {
                         val hexId = "MSG_" + bundleId.take(8).joinToString("") { "%02X".format(it) }
                         val msg = network.disaster.management.model.FeedMessage(

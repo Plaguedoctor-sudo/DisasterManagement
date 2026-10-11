@@ -3,7 +3,10 @@ package network.disaster.management.transport
 import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.bluetooth.le.*
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
@@ -58,6 +61,8 @@ class BleMeshSupervisor(
     private var advertiser: BluetoothLeAdvertiser? = null
     private var scanner: BluetoothLeScanner? = null
     private var isRunning = false
+    private var btStateReceiver: BroadcastReceiver? = null
+
     var isStealthMode: Boolean = false
         private set
 
@@ -80,6 +85,7 @@ class BleMeshSupervisor(
     private val peerCooldownMap = ConcurrentHashMap<String, Long>()
     private val activeBleSockets = ConcurrentHashMap<String, BluetoothSocket>()
     private val activeGattClients = ConcurrentHashMap<String, Pair<BluetoothGatt, Int>>() // Address -> (Gatt, MTU)
+    private val inboundGattDevices = ConcurrentHashMap<String, BluetoothDevice>() // Address -> Device
     private val rateLimiter = MeshRateLimiter(peerLimitPerSec = 20, channelLimitPerSec = 60)
 
     private var gattServer: BluetoothGattServer? = null
@@ -106,6 +112,7 @@ class BleMeshSupervisor(
         val uniquePeers = mutableSetOf<String>()
         uniquePeers.addAll(activeBleSockets.keys)
         uniquePeers.addAll(activeGattClients.keys)
+        uniquePeers.addAll(inboundGattDevices.keys)
         return uniquePeers.size
     }
 
@@ -115,12 +122,19 @@ class BleMeshSupervisor(
 
     @SuppressLint("MissingPermission")
     fun startMesh() {
-        if (isRunning || bluetoothAdapter == null) return
-        try {
-            if (!bluetoothAdapter.isEnabled) return
-            isRunning = true
-            shared = this
+        if (bluetoothAdapter == null) return
+        registerBluetoothStateReceiver()
 
+        if (!bluetoothAdapter.isEnabled) {
+            Log.w(TAG, "Bluetooth is disabled; mesh will start automatically when enabled")
+            return
+        }
+
+        if (isRunning && advertiser != null && scanner != null) return
+        isRunning = true
+        shared = this
+
+        try {
             advertiser = try { bluetoothAdapter.bluetoothLeAdvertiser } catch (_: Throwable) { null }
             scanner = try { bluetoothAdapter.bluetoothLeScanner } catch (_: Throwable) { null }
 
@@ -128,10 +142,31 @@ class BleMeshSupervisor(
             startServerListeners()
             startAdvertising()
             startDutyCycledScanning()
+            connectBondedDevices()
             Log.i(TAG, "Disaster BLE Mesh started (GATT + L2CAP + RFCOMM)")
         } catch (e: Throwable) {
             Log.e(TAG, "Error starting BLE mesh", e)
         }
+    }
+
+    private fun registerBluetoothStateReceiver() {
+        if (btStateReceiver != null) return
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        btStateReceiver = object : BroadcastReceiver() {
+            @SuppressLint("MissingPermission")
+            override fun onReceive(c: Context?, intent: Intent?) {
+                if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                    val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    if (state == BluetoothAdapter.STATE_ON) {
+                        Log.i(TAG, "Bluetooth enabled by user: auto-starting Disaster BLE Mesh")
+                        startMesh()
+                    }
+                }
+            }
+        }
+        try {
+            context.registerReceiver(btStateReceiver, filter)
+        } catch (_: Exception) {}
     }
 
     @SuppressLint("MissingPermission")
@@ -141,6 +176,11 @@ class BleMeshSupervisor(
             shared = null
         }
         job.cancel()
+
+        try {
+            btStateReceiver?.let { context.unregisterReceiver(it) }
+        } catch (_: Exception) {}
+        btStateReceiver = null
 
         try {
             advertiser?.stopAdvertising(advertiseCallback)
@@ -171,11 +211,13 @@ class BleMeshSupervisor(
             try { gattPair.first.close() } catch (_: Exception) {}
         }
         activeGattClients.clear()
+        inboundGattDevices.clear()
         updatePeerCount()
     }
 
     @SuppressLint("MissingPermission")
     private fun startGattServer() {
+        if (gattServer != null) return
         try {
             val server = bluetoothManager?.openGattServer(context, gattServerCallback) ?: return
             val service = BluetoothGattService(MESH_SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY)
@@ -188,6 +230,12 @@ class BleMeshSupervisor(
                         BluetoothGattCharacteristic.PROPERTY_NOTIFY,
                 BluetoothGattCharacteristic.PERMISSION_WRITE or BluetoothGattCharacteristic.PERMISSION_READ
             )
+
+            val cccd = BluetoothGattDescriptor(
+                UUID.fromString("00002902-0000-1000-8000-00805F9B34FB"),
+                BluetoothGattDescriptor.PERMISSION_WRITE or BluetoothGattDescriptor.PERMISSION_READ
+            )
+            charData.addDescriptor(cccd)
 
             service.addCharacteristic(charData)
             server.addService(service)
@@ -204,9 +252,19 @@ class BleMeshSupervisor(
             val addr = device.address ?: "UNKNOWN"
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 Log.i(TAG, "GATT Server: Inbound client connected from $addr")
+                inboundGattDevices[addr] = device
                 updatePeerCount()
+
+                // Reverse connect GATT client to peer so communication is 100% symmetric in both directions
+                scope.launch {
+                    delay(300L)
+                    if (!activeGattClients.containsKey(addr) && !activeBleSockets.containsKey(addr)) {
+                        connectGattToPeer(device, addr)
+                    }
+                }
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, "GATT Server: Inbound client disconnected from $addr")
+                inboundGattDevices.remove(addr)
                 updatePeerCount()
             }
         }
@@ -228,6 +286,23 @@ class BleMeshSupervisor(
             }
             value?.let { chunkData ->
                 handleIncomingGattChunk(device, chunkData)
+            }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onDescriptorWriteRequest(
+            device: BluetoothDevice,
+            requestId: Int,
+            descriptor: BluetoothGattDescriptor,
+            preparedWrite: Boolean,
+            responseNeeded: Boolean,
+            offset: Int,
+            value: ByteArray?
+        ) {
+            if (responseNeeded) {
+                try {
+                    gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
+                } catch (_: Exception) {}
             }
         }
     }
@@ -294,34 +369,76 @@ class BleMeshSupervisor(
     }
 
     @SuppressLint("MissingPermission")
+    private fun connectBondedDevices() {
+        try {
+            val bonded = bluetoothAdapter?.bondedDevices ?: return
+            for (dev in bonded) {
+                val addr = dev.address ?: continue
+                if (!activeBleSockets.containsKey(addr)) {
+                    scope.launch {
+                        try {
+                            val sock = dev.createInsecureRfcommSocketToServiceRecord(RFCOMM_UUID)
+                            sock.connect()
+                            handleConnectedSocket(sock, addr)
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
+        } catch (_: Throwable) {}
+    }
+
+    @SuppressLint("MissingPermission")
     private fun startAdvertising() {
         try {
-            val adv = advertiser ?: return
+            val adv = advertiser ?: bluetoothAdapter?.bluetoothLeAdvertiser ?: return
+            advertiser = adv
+
             val settings = AdvertiseSettings.Builder()
                 .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
                 .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
                 .setConnectable(true)
                 .build()
 
-            // Primary advertisement data (Service UUID)
+            // Primary advertisement data (Service UUID + short marker)
+            val markerBytes = byteArrayOf(0xD1.toByte(), 0x5A.toByte())
             val data = AdvertiseData.Builder()
                 .setIncludeDeviceName(false)
                 .addServiceUuid(ParcelUuid(MESH_SERVICE_UUID))
+                .addServiceData(ParcelUuid(MESH_SERVICE_UUID), markerBytes)
                 .build()
 
             // Scan response carries dynamic L2CAP PSM if available
             val scanResponseBuilder = AdvertiseData.Builder()
                 .setIncludeDeviceName(false)
 
+            var hasScanResponse = false
             if (assignedL2capPsm > 0) {
                 val psmBytes = ByteBuffer.allocate(2).order(ByteOrder.BIG_ENDIAN).putShort(assignedL2capPsm.toShort()).array()
                 scanResponseBuilder.addServiceData(ParcelUuid(MESH_SERVICE_UUID), psmBytes)
+                hasScanResponse = true
             }
 
-            adv.startAdvertising(settings, data, scanResponseBuilder.build(), advertiseCallback)
+            val scanResponse = if (hasScanResponse) scanResponseBuilder.build() else null
+
+            adv.startAdvertising(settings, data, scanResponse, advertiseCallback)
             Log.i(TAG, "BLE advertising started with PSM $assignedL2capPsm")
         } catch (e: Throwable) {
-            Log.w(TAG, "Failed to start advertising: ${e.message}")
+            Log.w(TAG, "Failed to start advertising with high power: ${e.message}; attempting fallback...")
+            try {
+                val adv = advertiser ?: return
+                val settings = AdvertiseSettings.Builder()
+                    .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
+                    .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
+                    .setConnectable(true)
+                    .build()
+                val data = AdvertiseData.Builder()
+                    .setIncludeDeviceName(false)
+                    .addServiceUuid(ParcelUuid(MESH_SERVICE_UUID))
+                    .build()
+                adv.startAdvertising(settings, data, advertiseCallback)
+            } catch (ex: Throwable) {
+                Log.w(TAG, "Fallback advertising also failed: ${ex.message}")
+            }
         }
     }
 
@@ -340,17 +457,15 @@ class BleMeshSupervisor(
         scanJob = scope.launch {
             while (isActive && isRunning) {
                 try {
-                    val sc = scanner
+                    val sc = scanner ?: bluetoothAdapter?.bluetoothLeScanner
                     if (sc != null && bluetoothAdapter?.isEnabled == true) {
-                        val filter = ScanFilter.Builder()
-                            .setServiceUuid(ParcelUuid(MESH_SERVICE_UUID))
-                            .build()
                         val settings = ScanSettings.Builder()
                             .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
                             .setReportDelay(0)
                             .build()
 
-                        sc.startScan(listOf(filter), settings, scanCallback)
+                        // Scan without hardware filter so OEM controllers (OnePlus, Samsung, Xiaomi) do not drop packets
+                        sc.startScan(null, settings, scanCallback)
                         delay(8000L) // 8s scan
                         try { sc.stopScan(scanCallback) } catch (_: Throwable) {}
                     }
@@ -364,17 +479,14 @@ class BleMeshSupervisor(
     fun triggerImmediateScanAndSync() {
         scope.launch {
             try {
-                val sc = scanner ?: return@launch
+                val sc = scanner ?: bluetoothAdapter?.bluetoothLeScanner ?: return@launch
                 if (bluetoothAdapter?.isEnabled == true) {
-                    val filter = ScanFilter.Builder()
-                        .setServiceUuid(ParcelUuid(MESH_SERVICE_UUID))
-                        .build()
                     val settings = ScanSettings.Builder()
                         .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                         .setReportDelay(0)
                         .build()
 
-                    sc.startScan(listOf(filter), settings, scanCallback)
+                    sc.startScan(null, settings, scanCallback)
                     delay(5000L)
                     try { sc.stopScan(scanCallback) } catch (_: Throwable) {}
                 }
@@ -385,8 +497,10 @@ class BleMeshSupervisor(
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
             val device = result?.device ?: return
-            val scanRecord = result.scanRecord
-            val psmData = scanRecord?.getServiceData(ParcelUuid(MESH_SERVICE_UUID))
+            val scanRecord = result.scanRecord ?: return
+            if (!isMeshAdvertisement(scanRecord)) return
+
+            val psmData = scanRecord.getServiceData(ParcelUuid(MESH_SERVICE_UUID))
             val peerPsm = if (psmData != null && psmData.size >= 2) {
                 ByteBuffer.wrap(psmData).order(ByteOrder.BIG_ENDIAN).short.toInt() and 0xFFFF
             } else {
@@ -396,20 +510,48 @@ class BleMeshSupervisor(
         }
     }
 
+    private fun isMeshAdvertisement(record: ScanRecord): Boolean {
+        // 1. Service UUID matches MESH_SERVICE_UUID
+        val uuids = record.serviceUuids
+        if (uuids != null && uuids.any { it.uuid == MESH_SERVICE_UUID }) return true
+
+        // 2. Service Data has MESH_SERVICE_UUID
+        if (record.serviceData.keys.any { it.uuid == MESH_SERVICE_UUID }) return true
+
+        // 3. Raw wire bytes check for 0xAA, 0xFE (16-bit prefix of MESH_SERVICE_UUID)
+        val raw = record.bytes ?: return false
+        for (i in 0 until raw.size - 1) {
+            if (raw[i] == 0xAA.toByte() && raw[i + 1] == 0xFE.toByte()) {
+                return true
+            }
+        }
+        return false
+    }
+
     @SuppressLint("MissingPermission")
     private fun handleDiscoveredPeer(device: BluetoothDevice, peerPsm: Int) {
         val address = try { device.address } catch (_: Throwable) { null } ?: return
-        if (activeBleSockets.containsKey(address) || activeGattClients.containsKey(address)) {
+        if (activeBleSockets.containsKey(address) || activeGattClients.containsKey(address) || inboundGattDevices.containsKey(address)) {
             return // Already connected
         }
 
         val lastSeen = peerCooldownMap[address] ?: 0L
-        if (System.currentTimeMillis() - lastSeen < 6000L) {
+        if (System.currentTimeMillis() - lastSeen < 4000L) {
             return
         }
         peerCooldownMap[address] = System.currentTimeMillis()
 
         scope.launch {
+            // Priority 0: If bonded/paired, try RFCOMM socket directly
+            if (device.bondState == BluetoothDevice.BOND_BONDED) {
+                try {
+                    val rfcomm = device.createInsecureRfcommSocketToServiceRecord(RFCOMM_UUID)
+                    rfcomm.connect()
+                    handleConnectedSocket(rfcomm, address)
+                    return@launch
+                } catch (_: Exception) {}
+            }
+
             // Priority 1: If peer advertises an explicit L2CAP PSM, try L2CAP CoC
             if (peerPsm > 0) {
                 val connection = transportSupervisor.connectWithFailover(context, device, peerPsm)
@@ -429,11 +571,27 @@ class BleMeshSupervisor(
     private fun connectGattToPeer(device: BluetoothDevice, address: String) {
         try {
             Log.i(TAG, "Connecting GATT client to peer $address...")
-            device.connectGatt(context, false, object : BluetoothGattCallback() {
+            val gattCallback = object : BluetoothGattCallback() {
+                private var servicesDiscovered = false
+
                 override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                     if (newState == BluetoothProfile.STATE_CONNECTED) {
-                        Log.i(TAG, "GATT Client connected to $address, requesting MTU 512")
-                        gatt.requestMtu(512)
+                        Log.i(TAG, "GATT Client connected to $address")
+                        activeGattClients[address] = Pair(gatt, 23)
+                        updatePeerCount()
+
+                        val mtuRequested = try { gatt.requestMtu(512) } catch (_: Exception) { false }
+                        if (!mtuRequested) {
+                            try { gatt.discoverServices() } catch (_: Exception) {}
+                        }
+
+                        // Watchdog: fallback discoverServices after 1500ms
+                        scope.launch {
+                            delay(1500L)
+                            if (!servicesDiscovered && activeGattClients.containsKey(address)) {
+                                try { gatt.discoverServices() } catch (_: Exception) {}
+                            }
+                        }
                     } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                         Log.i(TAG, "GATT Client disconnected from $address")
                         activeGattClients.remove(address)
@@ -447,27 +605,59 @@ class BleMeshSupervisor(
                     Log.i(TAG, "GATT MTU established: $negotiatedMtu for $address")
                     activeGattClients[address] = Pair(gatt, negotiatedMtu)
                     updatePeerCount()
-                    gatt.discoverServices()
+                    try { gatt.discoverServices() } catch (_: Exception) {}
                 }
 
                 override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                     if (status == BluetoothGatt.GATT_SUCCESS) {
-                        Log.i(TAG, "GATT Services discovered on $address! Triggering Bloom epidemic sync")
+                        servicesDiscovered = true
+                        Log.i(TAG, "GATT Services discovered on $address! Subscribing notifications & triggering sync")
+                        enableGattNotifications(gatt)
                         scope.launch {
                             sendBloomSummaryGatt(gatt)
                         }
                     }
                 }
-            }, BluetoothDevice.TRANSPORT_LE)
+
+                override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
+                    handleIncomingGattChunk(gatt.device, value)
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
+                    characteristic.value?.let { handleIncomingGattChunk(gatt.device, it) }
+                }
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+            } else {
+                device.connectGatt(context, false, gattCallback)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to connect GATT to $address", e)
         }
     }
 
-    /**
-     * Slices an arbitrary payload (4KB packet or Bloom summary) into GATT chunks and transmits
-     * them over the GATT connection with pacing.
-     */
+    @SuppressLint("MissingPermission")
+    private fun enableGattNotifications(gatt: BluetoothGatt) {
+        try {
+            val service = gatt.getService(MESH_SERVICE_UUID) ?: return
+            val charData = service.getCharacteristic(CHAR_DATA_UUID) ?: return
+            gatt.setCharacteristicNotification(charData, true)
+
+            val cccd = charData.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805F9B34FB"))
+            if (cccd != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    gatt.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                } else {
+                    cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                    gatt.writeDescriptor(cccd)
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     @SuppressLint("MissingPermission")
     private suspend fun sendGattData(gatt: BluetoothGatt, opcode: Byte, data: ByteArray): Boolean = withContext(Dispatchers.IO) {
         val service = gatt.getService(MESH_SERVICE_UUID) ?: return@withContext false
@@ -499,6 +689,44 @@ class BleMeshSupervisor(
                 Log.w(TAG, "GATT write failed for chunk $i/$totalChunks to ${gatt.device.address}")
             }
             delay(12L) // 12ms pacing ensures BLE hardware buffers do not overflow
+        }
+        true
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun sendGattServerNotification(device: BluetoothDevice, opcode: Byte, data: ByteArray): Boolean = withContext(Dispatchers.IO) {
+        val server = gattServer ?: return@withContext false
+        val service = server.getService(MESH_SERVICE_UUID) ?: return@withContext false
+        val charData = service.getCharacteristic(CHAR_DATA_UUID) ?: return@withContext false
+
+        val maxChunkBody = 20 - GATT_CHUNK_HEADER_SIZE
+        val totalChunks = ((data.size + maxChunkBody - 1) / maxChunkBody).coerceAtLeast(1)
+        val seqId = gattSeqCounter.incrementAndGet().toShort()
+
+        for (i in 0 until totalChunks) {
+            val start = i * maxChunkBody
+            val end = minOf(start + maxChunkBody, data.size)
+            val chunkLen = end - start
+
+            val frame = ByteArray(GATT_CHUNK_HEADER_SIZE + chunkLen)
+            val buf = ByteBuffer.wrap(frame).order(ByteOrder.BIG_ENDIAN)
+            buf.putShort(GATT_MAGIC)
+            buf.put(opcode)
+            buf.putShort(seqId)
+            buf.putShort(i.toShort())
+            buf.putShort(totalChunks.toShort())
+            buf.putShort(chunkLen.toShort())
+            buf.put(data, start, chunkLen)
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    server.notifyCharacteristicChanged(device, charData, false, frame)
+                } else {
+                    charData.value = frame
+                    server.notifyCharacteristicChanged(device, charData, false)
+                }
+            } catch (_: Exception) {}
+            delay(15L)
         }
         true
     }
@@ -591,10 +819,10 @@ class BleMeshSupervisor(
         val localBundles = shredder.getAllBundleIds(80)
         val toSend = localBundles.filter { !peerBloom.mightContain(it) }.take(10)
 
-        // Send missing bundles back to peer over GATT if connected
-        val gattEntry = activeGattClients[device.address]
-        if (gattEntry != null) {
-            scope.launch {
+        // Send missing bundles back to peer over GATT
+        scope.launch {
+            val gattEntry = activeGattClients[device.address]
+            if (gattEntry != null) {
                 for (id in toSend) {
                     val bundleBytes = shredder.retrieveBundle(id)
                     if (bundleBytes != null) {
@@ -602,14 +830,18 @@ class BleMeshSupervisor(
                         sendGattData(gattEntry.first, OP_GATT_BUNDLE, frame)
                     }
                 }
+            } else {
+                for (id in toSend) {
+                    val bundleBytes = shredder.retrieveBundle(id)
+                    if (bundleBytes != null) {
+                        val frame = if (bundleBytes.size == 4096) bundleBytes else bundleBytes.copyOf(4096)
+                        sendGattServerNotification(device, OP_GATT_BUNDLE, frame)
+                    }
+                }
             }
         }
     }
 
-    /**
-     * Registers an open Bluetooth socket (L2CAP or RFCOMM), runs initial epidemic sync,
-     * and streams live packets continuously.
-     */
     private suspend fun handleConnectedSocket(socket: BluetoothSocket, remoteAddress: String) = withContext(Dispatchers.IO) {
         val existing = activeBleSockets.put(remoteAddress, socket)
         if (existing != null && existing !== socket) {
@@ -675,11 +907,6 @@ class BleMeshSupervisor(
         }
     }
 
-    /**
-     * Broadcasts an invariant 4,096-byte packet to all active Bluetooth peers immediately
-     * across BOTH L2CAP socket streams and GATT connections.
-     * In Stealth Mode, background broadcasts are suppressed to prevent hostile SIGINT triangulation.
-     */
     fun broadcastPacket(packet: ByteArray) {
         if (isStealthMode) {
             Log.w(TAG, "RF RADIO SILENCE: Broadcast suppressed to prevent hostile SIGINT detection.")
@@ -710,20 +937,24 @@ class BleMeshSupervisor(
                 }
             }
 
+            // 3. Push over active inbound GATT Server devices
+            for ((addr, dev) in inboundGattDevices) {
+                if (!activeGattClients.containsKey(addr)) {
+                    try {
+                        sendGattServerNotification(dev, OP_GATT_BUNDLE, frame)
+                        delivered++
+                    } catch (_: Exception) {}
+                }
+            }
+
             updatePeerCount()
 
-            // If no peers currently connected, trigger immediate discovery burst
             if (delivered == 0) {
                 triggerImmediateScanAndSync()
             }
         }
     }
 
-    /**
-     * Emits a Low-Probability-of-Interception (LPI) micro-burst transmission (~150ms window).
-     * Used in hostile / post-apocalyptic environments where prolonged RF broadcasting
-     * draws hostile direction-finding fire.
-     */
     @SuppressLint("MissingPermission")
     fun burstTransmit(packet: ByteArray, burstDurationMs: Long = 150L) {
         scope.launch {
@@ -732,11 +963,16 @@ class BleMeshSupervisor(
                     startAdvertising()
                 }
                 val frame = if (packet.size == 4096) packet else packet.copyOf(4096)
-                for ((addr, socket) in activeBleSockets) {
+                for ((_, socket) in activeBleSockets) {
                     writeFrameSafe(socket, MSG_BUNDLE_PAYLOAD, frame)
                 }
-                for ((addr, gattPair) in activeGattClients) {
+                for ((_, gattPair) in activeGattClients) {
                     try { sendGattData(gattPair.first, OP_GATT_BUNDLE, frame) } catch (_: Exception) {}
+                }
+                for ((addr, dev) in inboundGattDevices) {
+                    if (!activeGattClients.containsKey(addr)) {
+                        try { sendGattServerNotification(dev, OP_GATT_BUNDLE, frame) } catch (_: Exception) {}
+                    }
                 }
                 delay(burstDurationMs)
             } finally {

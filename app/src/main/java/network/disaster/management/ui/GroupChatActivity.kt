@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -33,6 +34,7 @@ import network.disaster.management.model.FeedMessage
 import network.disaster.management.model.MessageType
 import network.disaster.management.routing.TriPoolRouter
 import network.disaster.management.storage.LowWearCryptoShredder
+import network.disaster.management.storage.UserIdentityManager
 import network.disaster.management.storage.MediaChunkingEngine
 import network.disaster.management.system.GpsBeaconHelper
 import network.disaster.management.transport.acoustic.FastFskModem
@@ -98,6 +100,8 @@ class GroupChatActivity : AppCompatActivity() {
         val btnTeamNeedAid = findViewById<Button>(R.id.btnTeamNeedAid)
         val btnTeamSupplies = findViewById<Button>(R.id.btnTeamSupplies)
         val btnTeamLocation = findViewById<Button>(R.id.btnTeamLocation)
+        val btnAttachLocation = findViewById<ImageButton>(R.id.btnAttachLocation)
+        val btnRemoveGroupLocation = findViewById<Button>(R.id.btnRemoveGroupLocation)
 
         tvGroupName.text = currentGroup?.name ?: "Group Chat"
         tvGroupDesc.text = if (currentGroup?.isBroadcast == true) {
@@ -107,6 +111,14 @@ class GroupChatActivity : AppCompatActivity() {
         }
 
         btnBack.setOnClickListener { finish() }
+
+        btnAttachLocation?.setOnClickListener {
+            toggleVoluntaryLocationAttachment()
+        }
+
+        btnRemoveGroupLocation?.setOnClickListener {
+            clearLocationAttachment()
+        }
 
         adapter = MessageAdapter(emptyList()) { msg ->
             openAttachment(msg)
@@ -182,15 +194,12 @@ class GroupChatActivity : AppCompatActivity() {
         }
 
         btnTeamCheckIn.setOnClickListener {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:UNKNOWN"
-                sendTextMessage("✅ STATUS CHECK-IN: SAFE & ACCOUNTED FOR [$coords]")
-            }
+            sendTextMessage("✅ STATUS CHECK-IN: SAFE & ACCOUNTED FOR")
         }
 
         btnTeamNeedAid.setOnClickListener {
             lifecycleScope.launch(Dispatchers.IO) {
-                val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:UNKNOWN"
+                val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:ACQUIRING"
                 sendTextMessage("🚨 PRIORITY ALERT: NEED IMMEDIATE EVACUATION / AID [$coords]", isEmergency = true)
                 acousticModem.transmitEmergencyBurst(groupId.toByteArray(Charsets.UTF_8).take(16).toByteArray())
             }
@@ -201,14 +210,49 @@ class GroupChatActivity : AppCompatActivity() {
         }
 
         btnTeamLocation.setOnClickListener {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:ACQUIRING"
-                sendTextMessage("📍 TEAM LOCATION BEACON: [$coords]")
-            }
+            AlertDialog.Builder(this)
+                .setTitle("Share Voluntary Location Beacon")
+                .setMessage("Voluntarily broadcast your current GPS coordinates to '${currentGroup?.name}'?")
+                .setPositiveButton("📍 Share Location") { _, _ ->
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:ACQUIRING"
+                        sendTextMessage("📍 TEAM LOCATION BEACON: [$coords]")
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
         }
 
         loadMessages()
         startLivePolling()
+    }
+
+    private var pendingLocationAttachment: String? = null
+
+    private fun toggleVoluntaryLocationAttachment() {
+        if (pendingLocationAttachment != null) {
+            clearLocationAttachment()
+            return
+        }
+        val banner = findViewById<View>(R.id.layoutGroupLocationAttachment)
+        val tvPreview = findViewById<TextView>(R.id.tvGroupLocationPreview)
+        banner?.visibility = View.VISIBLE
+        tvPreview?.text = "📍 Voluntary Location: Acquiring GPS fix..."
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val coords = gpsHelper.getFastestCoordinates()
+            val coordStr = coords?.toBeaconString() ?: "LOC:ACQUIRING"
+            withContext(Dispatchers.Main) {
+                pendingLocationAttachment = coordStr
+                tvPreview?.text = "📍 Voluntary Location: [$coordStr]"
+                Toast.makeText(this@GroupChatActivity, "GPS Location attached (Voluntary)", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun clearLocationAttachment() {
+        pendingLocationAttachment = null
+        findViewById<View>(R.id.layoutGroupLocationAttachment)?.visibility = View.GONE
     }
 
     private fun loadMessages() {
@@ -248,18 +292,37 @@ class GroupChatActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Team Supply Request")
             .setItems(options) { _, which ->
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:UNKNOWN"
-                    sendTextMessage("📦 SUPPLY NEED: ${options[which]} [$coords]")
-                }
+                val selectedNeed = options[which]
+                AlertDialog.Builder(this)
+                    .setTitle("Voluntary Location Attachment")
+                    .setMessage("Attach your GPS coordinates to this supply request?")
+                    .setPositiveButton("📍 Attach Location") { _, _ ->
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:ACQUIRING"
+                            sendTextMessage("📦 SUPPLY NEED: $selectedNeed [$coords]")
+                        }
+                    }
+                    .setNegativeButton("Do Not Attach") { _, _ ->
+                        sendTextMessage("📦 SUPPLY NEED: $selectedNeed")
+                    }
+                    .show()
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
     private fun sendTextMessage(text: String, isEmergency: Boolean = false) {
+        val locationToAttach = pendingLocationAttachment
+        clearLocationAttachment()
+
+        val finalText = if (!isEmergency && locationToAttach != null && !text.contains("[LOC:")) {
+            "$text [$locationToAttach]"
+        } else {
+            text
+        }
+
         lifecycleScope.launch(Dispatchers.IO) {
-            val senderId = "Node-" + (Build.MODEL.takeLast(4).ifEmpty { "ME" })
+            val senderId = UserIdentityManager.getUserName(this@GroupChatActivity)
             val msgId = UUID.randomUUID().toString()
             val now = System.currentTimeMillis()
 
@@ -267,7 +330,7 @@ class GroupChatActivity : AppCompatActivity() {
                 id = msgId,
                 groupId = groupId,
                 senderName = senderId,
-                content = text,
+                content = finalText,
                 type = if (isEmergency) MessageType.EMERGENCY else MessageType.TEXT,
                 timestamp = now,
                 isEmergency = isEmergency
@@ -280,7 +343,7 @@ class GroupChatActivity : AppCompatActivity() {
                     put("id", msgId)
                     put("groupId", groupId)
                     put("senderName", senderId)
-                    put("content", text)
+                    put("content", finalText)
                     put("type", if (isEmergency) MessageType.EMERGENCY.name else MessageType.TEXT.name)
                     put("timestamp", now)
                     put("isEmergency", isEmergency)
@@ -356,7 +419,7 @@ class GroupChatActivity : AppCompatActivity() {
                     else -> MessageType.FILE
                 }
 
-                val senderId = "Node-" + (Build.MODEL.takeLast(4).ifEmpty { "ME" })
+                val senderId = UserIdentityManager.getUserName(this@GroupChatActivity)
                 val msg = FeedMessage(
                     id = UUID.randomUUID().toString(),
                     groupId = groupId,
@@ -510,7 +573,7 @@ class GroupChatActivity : AppCompatActivity() {
                     network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(pkg.packet4k)
                 }
 
-                val senderId = "Node-" + (Build.MODEL.takeLast(4).ifEmpty { "ME" })
+                val senderId = UserIdentityManager.getUserName(this@GroupChatActivity)
                 val msg = FeedMessage(
                     id = UUID.randomUUID().toString(),
                     groupId = groupId,

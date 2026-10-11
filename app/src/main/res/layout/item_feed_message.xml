@@ -18,36 +18,100 @@
         android:orientation="vertical"
         android:padding="14dp">
 
-        <!-- Header: Sender & Tag & Time -->
+        <!-- Quoted Reply Block (Thread Reply) -->
+        <LinearLayout
+            android:id="@+id/layoutReplyQuote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="#242B35"
+            android:padding="8dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone">
+
+            <View
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:background="#38BDF8"
+                android:layout_marginEnd="8dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvReplySender"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="↩️ Replying to @Civilian"
+                    android:textColor="#38BDF8"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvReplySnippet"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Original message snippet..."
+                    android:textColor="#CBD5E1"
+                    android:textSize="11sp"
+                    android:maxLines="2"
+                    android:ellipsize="end" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Header: Sender & Trust Badges & Time -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="6dp">
 
-            <TextView
-                android:id="@+id/tvSender"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Civilian Edge Node"
-                android:textColor="#00FF66"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:layout_alignParentStart="true" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_alignParentStart="true"
+                android:layout_toStartOf="@id/tvTime">
 
-            <TextView
-                android:id="@+id/tvBadgeEmergency"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_toEndOf="@id/tvSender"
-                android:layout_marginStart="8dp"
-                android:background="#742A2A"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="2dp"
-                android:text="DISTRESS"
-                android:textColor="#FFFFFF"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
+                <TextView
+                    android:id="@+id/tvSender"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Civilian Edge Node"
+                    android:textColor="#00FF66"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvTrustBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="#064E3B"
+                    android:paddingHorizontal="5dp"
+                    android:paddingVertical="2dp"
+                    android:text="⭐ 80%"
+                    android:textColor="#A7F3D0"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvBadgeEmergency"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="#742A2A"
+                    android:paddingHorizontal="5dp"
+                    android:paddingVertical="2dp"
+                    android:text="DISTRESS"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tvTime"
@@ -70,6 +134,38 @@
             android:lineSpacingExtra="3dp"
             android:layout_marginBottom="8dp" />
 
+        <!-- Location Attachment Container (Emergency Mandatory or Voluntary) -->
+        <LinearLayout
+            android:id="@+id/layoutLocationAttachment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="#132B3A"
+            android:padding="8dp"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/ivLocationIcon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@android:drawable/ic_menu_mylocation"
+                app:tint="#38BDF8"
+                android:contentDescription="Location Coordinates" />
+
+            <TextView
+                android:id="@+id/tvLocationCoords"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="📍 Attached Location: [LOC: 0.0, 0.0]"
+                android:textColor="#BAE6FD"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <!-- Media Attachment Container (Image, Video, File) -->
         <LinearLayout
             android:id="@+id/layoutAttachment"
@@ -79,6 +175,7 @@
             android:background="#242424"
             android:padding="10dp"
             android:gravity="center_vertical"
+            android:layout_marginBottom="8dp"
             android:visibility="gone">
 
             <ImageView
@@ -123,6 +220,92 @@
                 android:textColor="#00FF66"
                 android:textSize="11sp"
                 android:paddingHorizontal="12dp" />
+        </LinearLayout>
+
+        <!-- Friend Request Interactive Actions Container -->
+        <LinearLayout
+            android:id="@+id/layoutFriendRequestActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="#1E293B"
+            android:padding="8dp"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvFriendRequestBanner"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🤝 Incoming Friend Request"
+                android:textColor="#FCD34D"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnAcceptFriend"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:backgroundTint="#059669"
+                android:text="✅ Accept"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:paddingHorizontal="10dp"
+                android:minHeight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp" />
+
+            <Button
+                android:id="@+id/btnRejectFriend"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:layout_marginStart="6dp"
+                android:backgroundTint="#DC2626"
+                android:text="❌ Decline"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:paddingHorizontal="8dp"
+                android:minHeight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp" />
+        </LinearLayout>
+
+        <!-- Bottom Action Bar: Reply & User Trust -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end|center_vertical"
+            android:layout_marginTop="2dp">
+
+            <Button
+                android:id="@+id/btnUserTrust"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:backgroundTint="#262626"
+                android:text="👤 Trust &amp; Friend"
+                android:textColor="#94A3B8"
+                android:textSize="10sp"
+                android:paddingHorizontal="8dp"
+                android:minHeight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp" />
+
+            <Button
+                android:id="@+id/btnReply"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="#1E293B"
+                android:text="↩️ Reply"
+                android:textColor="#38BDF8"
+                android:textSize="10sp"
+                android:paddingHorizontal="10dp"
+                android:minHeight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp" />
         </LinearLayout>
 
     </LinearLayout>

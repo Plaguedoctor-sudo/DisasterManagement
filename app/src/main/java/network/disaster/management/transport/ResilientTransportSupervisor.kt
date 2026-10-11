@@ -23,7 +23,12 @@ class ResilientTransportSupervisor {
                 WifiMeshSupervisor.shared?.broadcastPacket(packet)
             } catch (_: Throwable) {}
 
-            // 2. Bluetooth Mesh (L2CAP CoC / RFCOMM)
+            // 2. Wi-Fi Direct (P2P zero-network) Mesh
+            try {
+                WifiDirectMeshSupervisor.shared?.broadcastPacket(packet)
+            } catch (_: Throwable) {}
+
+            // 3. Bluetooth Mesh (L2CAP CoC / RFCOMM / GATT)
             try {
                 BleMeshSupervisor.shared?.broadcastPacket(packet)
             } catch (_: Throwable) {}

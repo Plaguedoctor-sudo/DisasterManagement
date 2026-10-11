@@ -103,7 +103,9 @@ object EnvelopeFormat {
     )
 
     fun serializeEmergency(env: EmergencyEnvelope): ByteArray {
-        val total = 4 + 4 + 8 + 32 + 8 + 1 + env.ciphertext.size + 16
+        require(env.ciphertext.size <= 65535) { "Emergency ciphertext exceeds maximum size (65535 bytes)" }
+        // Header: 1B magic + 1B proto + 1B flags + 1B hopLimit + 4B ttl + 8B bundleId + 32B x25519 + 8B nonce + 2B cipherLen + cipher + 16B tag
+        val total = 4 + 4 + 8 + 32 + 8 + 2 + env.ciphertext.size + 16
         val buffer = ByteBuffer.allocate(total).order(ByteOrder.BIG_ENDIAN)
         buffer.put(0xD7.toByte())
         buffer.put(PROTO_VERSION_EMERGENCY)
@@ -113,14 +115,14 @@ object EnvelopeFormat {
         buffer.put(env.shortBundleId)
         buffer.put(env.ephemeralX25519Pub)
         buffer.put(env.nonce)
-        buffer.put(env.ciphertext.size.toByte())
+        buffer.putShort(env.ciphertext.size.toShort())
         buffer.put(env.ciphertext)
         buffer.put(env.poly1305Tag)
         return buffer.array()
     }
 
     fun deserializeEmergency(raw: ByteArray): EmergencyEnvelope? {
-        if (raw.size < 70) return null
+        if (raw.size < 71) return null
         return try {
             val buffer = ByteBuffer.wrap(raw).order(ByteOrder.BIG_ENDIAN)
             val magic = buffer.get()
@@ -133,7 +135,7 @@ object EnvelopeFormat {
             val bundleId = ByteArray(8).also { buffer.get(it) }
             val x25519 = ByteArray(32).also { buffer.get(it) }
             val nonce = ByteArray(8).also { buffer.get(it) }
-            val cipherLen = buffer.get().toInt() and 0xFF
+            val cipherLen = buffer.short.toInt() and 0xFFFF
             if (buffer.remaining() < cipherLen + 16) return null
             val ciphertext = ByteArray(cipherLen).also { buffer.get(it) }
             val tag = ByteArray(16).also { buffer.get(it) }

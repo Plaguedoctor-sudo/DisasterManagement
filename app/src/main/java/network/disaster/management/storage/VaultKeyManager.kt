@@ -58,9 +58,11 @@ object VaultKeyManager {
         prefs.edit()
             .putString(PREF_ENCRYPTED_PASSPHRASE, Base64.encodeToString(encryptedPass, Base64.NO_WRAP))
             .putString(PREF_IV, Base64.encodeToString(iv, Base64.NO_WRAP))
-            .apply()
+            .commit()
 
-        return rawPass.joinToString("") { "%02x".format(it) }
+        val hexResult = rawPass.joinToString("") { "%02x".format(it) }
+        rawPass.fill(0)
+        return hexResult
     }
 
     private fun getOrCreateMasterKey(): SecretKey {

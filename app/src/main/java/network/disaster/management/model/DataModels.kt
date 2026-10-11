@@ -5,7 +5,10 @@ enum class MessageType {
     IMAGE,
     VIDEO,
     FILE,
-    EMERGENCY
+    EMERGENCY,
+    FRIEND_REQUEST,
+    FRIEND_ACCEPT,
+    FRIEND_REJECT
 }
 
 data class CivilGroup(
@@ -37,7 +40,22 @@ data class FeedMessage(
     val mimeType: String? = null,
     val localFilePath: String? = null,
     val timestamp: Long = System.currentTimeMillis(),
-    val isEmergency: Boolean = false
+    val isEmergency: Boolean = false,
+    val replyToId: String? = null,
+    val replyToSender: String? = null,
+    val replyToText: String? = null,
+    val targetPeer: String? = null
+)
+
+data class CivilianContact(
+    val peerId: String,
+    val displayName: String,
+    val isFriend: Boolean = true,
+    val trustScore: Int = 85, // 0 - 100
+    val trustBadge: String = "FRIEND", // FRIEND, FIRST_RESPONDER, NEUTRAL, FLAGGED
+    val notes: String = "",
+    val addedEpoch: Long = System.currentTimeMillis(),
+    val friendStatus: String = "NONE" // NONE, PENDING_SENT, PENDING_RECEIVED, ACCEPTED, REJECTED
 )
 
 data class FileManifest(

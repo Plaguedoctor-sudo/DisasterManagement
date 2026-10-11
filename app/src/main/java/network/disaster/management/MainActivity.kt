@@ -29,6 +29,7 @@ import network.disaster.management.crypto.EnvelopeFormat
 import network.disaster.management.crypto.HybridEngine
 import network.disaster.management.crypto.NativeMemoryLock
 import network.disaster.management.model.CivilGroup
+import network.disaster.management.model.CivilianContact
 import network.disaster.management.model.FeedMessage
 import network.disaster.management.model.FileManifest
 import network.disaster.management.model.MessageType
@@ -37,11 +38,18 @@ import network.disaster.management.storage.LowWearCryptoShredder
 import network.disaster.management.storage.MediaChunkingEngine
 import network.disaster.management.system.GpsBeaconHelper
 import network.disaster.management.system.OemBatteryManager
+import network.disaster.management.transport.ApkPropagationServer
 import network.disaster.management.transport.MeshForegroundService
 import network.disaster.management.transport.acoustic.FastFskModem
+import network.disaster.management.storage.UserIdentityManager
 import network.disaster.management.ui.GroupAdapter
 import network.disaster.management.ui.GroupChatActivity
+import network.disaster.management.ui.GroupQrHelper
 import network.disaster.management.ui.MessageAdapter
+import network.disaster.management.ui.QrScannerActivity
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.widget.HorizontalScrollView
 import java.io.File
 import java.io.FileOutputStream
 import java.security.SecureRandom
@@ -74,9 +82,40 @@ class MainActivity : AppCompatActivity() {
     private var pendingManifest: FileManifest? = null
     private var pendingPackages: List<MediaChunkingEngine.ChunkPackage>? = null
     private var pendingUri: Uri? = null
+    private var pendingReplyMessage: FeedMessage? = null
 
     private val selectFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { onMediaFileSelected(it) }
+    }
+
+    private val qrScannerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            val groupName = data?.getStringExtra(QrScannerActivity.EXTRA_GROUP_NAME)
+            val friendPeer = data?.getStringExtra(QrScannerActivity.EXTRA_FRIEND_PEER)
+            val scannedData = data?.getStringExtra(QrScannerActivity.EXTRA_SCANNED_DATA)
+
+            if (!groupName.isNullOrEmpty()) {
+                Toast.makeText(this, "✅ Successfully joined group: $groupName", Toast.LENGTH_LONG).show()
+                loadGroups()
+            } else if (!friendPeer.isNullOrEmpty()) {
+                sendFriendRequest(friendPeer)
+            } else if (!scannedData.isNullOrEmpty()) {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val imported = shredder.importGroupFromQr(scannedData)
+                    withContext(Dispatchers.Main) {
+                        if (imported != null) {
+                            Toast.makeText(this@MainActivity, "✅ Joined group: ${imported.name}", Toast.LENGTH_LONG).show()
+                            loadGroups()
+                        } else {
+                            Toast.makeText(this@MainActivity, "Scanned: $scannedData", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private val permissionLauncher = registerForActivityResult(
@@ -86,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         updatePermissionBanner(!allGranted)
         if (allGranted || hasCriticalPermissions()) {
             startMeshServicesSafely()
-            Toast.makeText(this, "Mesh active: Ready for Wi-Fi hotspot & BLE communication", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Mesh active: Ready for Wi-Fi Direct, Hotspot & BLE communication", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -123,6 +162,11 @@ class MainActivity : AppCompatActivity() {
         setupRelaysTab()
 
         findViewById<TextView>(R.id.tvStatus).text = "Status: Initializing Mesh Transceivers..."
+
+        updateUserIdentityUI()
+        if (!UserIdentityManager.isUserNameCustomized(this)) {
+            showChooseNameDialog(isInitialPrompt = true)
+        }
 
         checkAndRequestAllPermissions()
         startPeriodicRefresh()
@@ -533,9 +577,51 @@ class MainActivity : AppCompatActivity() {
         val btnQuickSupplies = findViewById<Button>(R.id.btnQuickSupplies)
         val btnQuickHazard = findViewById<Button>(R.id.btnQuickHazard)
 
-        broadcastAdapter = MessageAdapter(emptyList()) { msg ->
-            openAttachment(msg)
+        val btnCancelReply = findViewById<Button>(R.id.btnCancelReply)
+        val btnManageFriends = findViewById<Button>(R.id.btnManageFriends)
+        val btnPropagateApp = findViewById<Button>(R.id.btnPropagateApp)
+        val btnChangeCallsign = findViewById<Button>(R.id.btnChangeCallsign)
+        val layoutUserIdentity = findViewById<View>(R.id.layoutUserIdentity)
+        val btnAttachLocation = findViewById<ImageButton>(R.id.btnAttachLocation)
+        val btnRemoveLocationAttachment = findViewById<Button>(R.id.btnRemoveLocationAttachment)
+
+        btnAttachLocation?.setOnClickListener {
+            toggleVoluntaryLocationAttachment()
         }
+
+        btnRemoveLocationAttachment?.setOnClickListener {
+            clearLocationAttachment()
+        }
+
+        btnChangeCallsign?.setOnClickListener {
+            showChooseNameDialog()
+        }
+
+        layoutUserIdentity?.setOnClickListener {
+            showChooseNameDialog()
+        }
+
+        btnCancelReply?.setOnClickListener {
+            clearReplyDraft()
+        }
+
+        btnManageFriends?.setOnClickListener {
+            showFriendsManagementDialog()
+        }
+
+        btnPropagateApp?.setOnClickListener {
+            showAppPropagationDialog()
+        }
+
+        broadcastAdapter = MessageAdapter(
+            messages = emptyList(),
+            onFileClick = { msg -> openAttachment(msg) },
+            shredder = shredder,
+            onReplyClick = { msg -> handleReplyToMessage(msg) },
+            onUserTrustClick = { msg -> showUserTrustDialog(msg) },
+            onAcceptFriendClick = { msg -> acceptFriendRequest(msg.senderName) },
+            onRejectFriendClick = { msg -> rejectFriendRequest(msg.senderName) }
+        )
         rvBroadcast.layoutManager = LinearLayoutManager(this)
         rvBroadcast.adapter = broadcastAdapter
 
@@ -552,10 +638,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnQuickSafe.setOnClickListener {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:UNKNOWN"
-                broadcastReport("🟢 STATUS: SAFE — Civilian check-in confirmed [$coords]")
-            }
+            broadcastReport("🟢 STATUS: SAFE — Civilian check-in confirmed")
         }
 
         btnQuickTrapped.setOnClickListener {
@@ -573,6 +656,51 @@ class MainActivity : AppCompatActivity() {
         loadBroadcastMessages()
     }
 
+    private var pendingLocationAttachment: String? = null
+
+    private fun toggleVoluntaryLocationAttachment() {
+        if (pendingLocationAttachment != null) {
+            clearLocationAttachment()
+            return
+        }
+        val banner = findViewById<View>(R.id.layoutLocationAttachmentPreview)
+        val tvPreview = findViewById<TextView>(R.id.tvLocationAttachmentPreview)
+        banner?.visibility = View.VISIBLE
+        tvPreview?.text = "📍 Voluntary Location: Acquiring GPS fix..."
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val coords = gpsHelper.getFastestCoordinates()
+            val coordStr = coords?.toBeaconString() ?: "LOC:ACQUIRING"
+            withContext(Dispatchers.Main) {
+                pendingLocationAttachment = coordStr
+                tvPreview?.text = "📍 Voluntary Location: [$coordStr]"
+                Toast.makeText(this@MainActivity, "GPS Location attached (Voluntary)", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun clearLocationAttachment() {
+        pendingLocationAttachment = null
+        findViewById<View>(R.id.layoutLocationAttachmentPreview)?.visibility = View.GONE
+    }
+
+    private fun handleReplyToMessage(msg: FeedMessage) {
+        pendingReplyMessage = msg
+        val banner = findViewById<View>(R.id.layoutReplyBanner)
+        val preview = findViewById<TextView>(R.id.tvReplyingToPreview)
+        val etInput = findViewById<EditText>(R.id.etBroadcastInput)
+
+        val cleanSnippet = (msg.content ?: "").replace("\n", " ").take(60)
+        preview?.text = "↩️ Replying to @${msg.senderName}: \"$cleanSnippet\""
+        banner?.visibility = View.VISIBLE
+        etInput?.requestFocus()
+    }
+
+    private fun clearReplyDraft() {
+        pendingReplyMessage = null
+        findViewById<View>(R.id.layoutReplyBanner)?.visibility = View.GONE
+    }
+
     private fun showQuickSuppliesDialog() {
         val options = arrayOf(
             "💧 Clean Drinking Water Needed",
@@ -585,10 +713,20 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Broadcast Resource Need")
             .setItems(options) { _, which ->
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:UNKNOWN"
-                    broadcastReport("🟡 RESOURCE NEED: ${options[which]} [$coords]")
-                }
+                val selectedNeed = options[which]
+                AlertDialog.Builder(this)
+                    .setTitle("Voluntary Location Attachment")
+                    .setMessage("Attach your GPS coordinates to this resource request so nearby units can navigate to you?")
+                    .setPositiveButton("📍 Attach Location") { _, _ ->
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:ACQUIRING"
+                            broadcastReport("🟡 RESOURCE NEED: $selectedNeed [$coords]")
+                        }
+                    }
+                    .setNegativeButton("Do Not Attach") { _, _ ->
+                        broadcastReport("🟡 RESOURCE NEED: $selectedNeed")
+                    }
+                    .show()
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -606,10 +744,20 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Broadcast Hazard Alert")
             .setItems(options) { _, which ->
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:UNKNOWN"
-                    broadcastReport("⚠️ HAZARD ALERT: ${options[which]} [$coords]")
-                }
+                val selectedHazard = options[which]
+                AlertDialog.Builder(this)
+                    .setTitle("Voluntary Location Attachment")
+                    .setMessage("Attach your GPS coordinates to mark this hazard location for other survivors?")
+                    .setPositiveButton("📍 Attach Location") { _, _ ->
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:ACQUIRING"
+                            broadcastReport("⚠️ HAZARD ALERT: $selectedHazard [$coords]")
+                        }
+                    }
+                    .setNegativeButton("Do Not Attach") { _, _ ->
+                        broadcastReport("⚠️ HAZARD ALERT: $selectedHazard")
+                    }
+                    .show()
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -623,13 +771,703 @@ class MainActivity : AppCompatActivity() {
             }
             withContext(Dispatchers.Main) {
                 broadcastAdapter.updateMessages(messages)
+                val emptyTv = findViewById<TextView>(R.id.tvEmptyBroadcastFeed)
+                emptyTv?.visibility = if (messages.isEmpty()) View.VISIBLE else View.GONE
             }
         }
     }
 
-    private fun broadcastReport(text: String) {
+    private fun updateUserIdentityUI() {
+        val userName = UserIdentityManager.getUserName(this)
+        findViewById<TextView>(R.id.tvUserCallsign)?.text = "👤 Callsign: @$userName"
+        findViewById<Button>(R.id.btnChangeCallsign)?.text = "👤 @$userName"
+    }
+
+    private fun showChooseNameDialog(isInitialPrompt: Boolean = false) {
+        val currentName = UserIdentityManager.getUserName(this)
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 28, 48, 16)
+        }
+
+        val tvDesc = TextView(this).apply {
+            text = if (isInitialPrompt) {
+                "Welcome to Disaster Mesh Network!\n\nPlease choose your mesh callsign / name so nearby survivors, rescue personnel, and friends can identify your broadcasts, alerts, and friend requests off-grid."
+            } else {
+                "Choose how your node appears across the mesh network. This name will be attached to all broadcasts, distress beacons, friend requests, and group messages."
+            }
+            setTextColor(Color.parseColor("#CCCCCC"))
+            textSize = 13f
+            setPadding(0, 0, 0, 16)
+        }
+        container.addView(tvDesc)
+
+        val input = EditText(this).apply {
+            hint = "e.g. Medic-Alpha, Scout-7, Sarah"
+            setText(currentName)
+            selectAll()
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor("#777777"))
+            setBackgroundResource(android.R.drawable.edit_text)
+            filters = arrayOf(android.text.InputFilter.LengthFilter(24))
+        }
+        container.addView(input)
+
+        val tvSuggestionsLabel = TextView(this).apply {
+            text = "⚡ Quick Suggestions:"
+            setTextColor(Color.parseColor("#93C5FD"))
+            textSize = 11f
+            setPadding(0, 16, 0, 8)
+        }
+        container.addView(tvSuggestionsLabel)
+
+        val horizontalScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+        }
+        val suggestionsLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+        val suggestions = UserIdentityManager.getSuggestedCallsigns()
+        for (sug in suggestions) {
+            val chip = Button(this).apply {
+                text = sug
+                textSize = 11f
+                isAllCaps = false
+                setTextColor(Color.WHITE)
+                backgroundTintList = ColorStateList.valueOf(Color.parseColor("#1E293B"))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    resources.getDimensionPixelSize(android.R.dimen.app_icon_size) / 2
+                ).apply {
+                    marginEnd = 12
+                }
+                setOnClickListener {
+                    input.setText(sug)
+                    input.setSelection(sug.length)
+                }
+            }
+            suggestionsLayout.addView(chip)
+        }
+        horizontalScroll.addView(suggestionsLayout)
+        container.addView(horizontalScroll)
+
+        AlertDialog.Builder(this)
+            .setTitle(if (isInitialPrompt) "👋 Set Your Mesh Callsign" else "👤 Choose Your Callsign / Name")
+            .setView(container)
+            .setPositiveButton("Save Callsign") { _, _ ->
+                val entered = input.text.toString()
+                val saved = UserIdentityManager.setUserName(this, entered)
+                if (saved == null) {
+                    Toast.makeText(this, "Invalid callsign. Please enter 1 to 24 characters.", Toast.LENGTH_SHORT).show()
+                } else {
+                    updateUserIdentityUI()
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        shredder.saveContact(
+                            CivilianContact(
+                                peerId = saved,
+                                displayName = saved,
+                                isFriend = true,
+                                trustScore = 100,
+                                trustBadge = "OWN_NODE",
+                                notes = "Local operator device",
+                                friendStatus = "ACCEPTED"
+                            )
+                        )
+                    }
+                    Toast.makeText(this, "✅ Callsign set to: @$saved", Toast.LENGTH_SHORT).show()
+                    loadBroadcastMessages()
+                }
+            }
+            .setNegativeButton(if (isInitialPrompt) "Keep Default" else "Cancel") { _, _ ->
+                if (isInitialPrompt) {
+                    val defaultName = UserIdentityManager.resetToDefault(this)
+                    updateUserIdentityUI()
+                    Toast.makeText(this, "Using default callsign: @$defaultName", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNeutralButton("🎲 Reset / Default") { _, _ ->
+                val defaultName = UserIdentityManager.resetToDefault(this)
+                updateUserIdentityUI()
+                Toast.makeText(this, "Reset to default: @$defaultName", Toast.LENGTH_SHORT).show()
+                loadBroadcastMessages()
+            }
+            .show()
+    }
+
+    private fun showMyFriendQrDialog() {
+        val myName = UserIdentityManager.getUserName(this)
+        val qrBmp = GroupQrHelper.generateFriendQrBitmap(myName)
+        if (qrBmp == null) {
+            Toast.makeText(this, "Failed to generate QR code", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val img = ImageView(this).apply {
+            setImageBitmap(qrBmp)
+            setPadding(48, 32, 48, 32)
+            adjustViewBounds = true
+        }
+        AlertDialog.Builder(this)
+            .setTitle("📱 My Friend QR Code")
+            .setMessage("Ask your peer to scan this QR code using their '📷 Scan Peer QR Code' button to send a friend request instantly.\n\nCallsign: @$myName")
+            .setView(img)
+            .setPositiveButton("Done", null)
+            .setNeutralButton("✏️ Change Callsign") { _, _ ->
+                showChooseNameDialog()
+            }
+            .show()
+    }
+
+    private fun showUserTrustDialog(msg: FeedMessage) {
+        val peerId = msg.senderName
+        val myId = UserIdentityManager.getUserName(this)
+        val isSelf = peerId == myId
+        val isFriend = shredder.isFriend(peerId)
+        val contact = shredder.getContact(peerId)
+        val profile = network.disaster.management.security.HostileActorDetector.shared.getProfile(peerId)
+        val curScore = contact?.trustScore ?: profile?.trustScore ?: 70
+
+        val statusDescription = when {
+            isSelf -> "Your Own Device Broadcast"
+            isFriend -> "🛡️ Trusted Friend (Score: $curScore%)"
+            contact?.friendStatus == "PENDING_RECEIVED" -> "📥 Incoming Friend Request (Awaiting Your Decision)"
+            contact?.friendStatus == "PENDING_SENT" -> "⏳ Friend Request Sent (Awaiting Accept)"
+            profile?.classification == network.disaster.management.map.ActorClassification.HOSTILE_INFILTRATOR -> "🚨 Flagged Hostile Infiltrator (0%)"
+            profile?.classification == network.disaster.management.map.ActorClassification.SUSPICIOUS_ACTOR -> "⚠️ Suspicious Anomaly Detected ($curScore%)"
+            profile?.classification == network.disaster.management.map.ActorClassification.VERIFIED_CIVILIAN -> "⭐ Verified Civilian Mesh Node ($curScore%)"
+            else -> "⚪ Standard Unverified Civilian ($curScore%)"
+        }
+
+        val options = mutableListOf<String>()
+        if (!isSelf) {
+            if (contact?.friendStatus == "PENDING_RECEIVED") {
+                options.add("✅ Accept Friend Request from @$peerId")
+                options.add("❌ Decline Friend Request from @$peerId")
+            } else if (isFriend) {
+                options.add("❌ Remove from Friends (Delete Contact)")
+            } else {
+                options.add("🤝 Send Friend Request to @$peerId")
+            }
+            options.add("⭐ Vouch for Peer (+15 Trust Score)")
+            options.add("⚠️ Flag Suspicious Activity (-25 Trust Score)")
+            options.add("🚨 Flag as Hostile Infiltrator (0% Trust & Quarantine)")
+        } else {
+            options.add("✏️ Change My Callsign / Name")
+            options.add("📱 Show My Friend QR Code")
+        }
+        options.add("↩️ Reply to Broadcast from @$peerId")
+
+        AlertDialog.Builder(this)
+            .setTitle("Identity & Trust: @$peerId")
+            .setMessage("Status: $statusDescription\nRecorded Trust Score: $curScore%")
+            .setItems(options.toTypedArray()) { _, which ->
+                val choice = options[which]
+                when {
+                    choice.startsWith("✅ Accept Friend Request") -> {
+                        acceptFriendRequest(peerId)
+                    }
+                    choice.startsWith("❌ Decline Friend Request") -> {
+                        rejectFriendRequest(peerId)
+                    }
+                    choice.startsWith("🤝 Send Friend Request") -> {
+                        sendFriendRequest(peerId)
+                    }
+                    choice.startsWith("❌ Remove from Friends") -> {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            shredder.deleteContact(peerId)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, "Removed @$peerId from friends", Toast.LENGTH_SHORT).show()
+                                loadBroadcastMessages()
+                            }
+                        }
+                    }
+                    choice.startsWith("⭐ Vouch") -> {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val newScore = (curScore + 15).coerceAtMost(100)
+                            if (contact != null) {
+                                shredder.saveContact(contact.copy(trustScore = newScore))
+                            }
+                            network.disaster.management.security.HostileActorDetector.shared.setPeerTrust(
+                                peerId,
+                                newScore,
+                                network.disaster.management.map.ActorClassification.VERIFIED_CIVILIAN
+                            )
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, "Vouched for @$peerId: Trust raised to $newScore%", Toast.LENGTH_SHORT).show()
+                                loadBroadcastMessages()
+                            }
+                        }
+                    }
+                    choice.startsWith("⚠️ Flag Suspicious") -> {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val newScore = (curScore - 25).coerceAtLeast(10)
+                            if (contact != null) {
+                                shredder.saveContact(contact.copy(trustScore = newScore))
+                            }
+                            network.disaster.management.security.HostileActorDetector.shared.setPeerTrust(
+                                peerId,
+                                newScore,
+                                network.disaster.management.map.ActorClassification.SUSPICIOUS_ACTOR
+                            )
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, "Flagged @$peerId: Trust lowered to $newScore%", Toast.LENGTH_SHORT).show()
+                                loadBroadcastMessages()
+                            }
+                        }
+                    }
+                    choice.startsWith("🚨 Flag as Hostile") -> {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            if (isFriend) {
+                                shredder.deleteContact(peerId)
+                            }
+                            network.disaster.management.security.HostileActorDetector.shared.setPeerTrust(
+                                peerId,
+                                0,
+                                network.disaster.management.map.ActorClassification.HOSTILE_INFILTRATOR
+                            )
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, "🚨 Peer @$peerId quarantined as Hostile Infiltrator", Toast.LENGTH_LONG).show()
+                                loadBroadcastMessages()
+                            }
+                        }
+                    }
+                    choice.startsWith("↩️ Reply") -> {
+                        handleReplyToMessage(msg)
+                    }
+                    choice.startsWith("✏️ Change My Callsign") -> {
+                        showChooseNameDialog()
+                    }
+                    choice.startsWith("📱 Show My Friend QR Code") -> {
+                        showMyFriendQrDialog()
+                    }
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showFriendsManagementDialog() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val senderId = "Civilian-" + (Build.MODEL.takeLast(4).ifEmpty { "ME" })
+            val pendingRequests = shredder.getPendingFriendRequests()
+            val contacts = shredder.getAllContacts()
+
+            withContext(Dispatchers.Main) {
+                val items = mutableListOf<String>()
+
+                // Section 1: Pending Friend Requests
+                for (p in pendingRequests) {
+                    items.add("📥 PENDING REQUEST: @${p.peerId} [Tap to Accept/Decline]")
+                }
+
+                // Section 2: Actions
+                val myName = UserIdentityManager.getUserName(this@MainActivity)
+                items.add("➕ Send Friend Request by Peer ID / Name")
+                items.add("📱 Show My Friend QR Code (@$myName)")
+                items.add("📷 Scan Peer QR Code (Pair Instantly)")
+                items.add("✏️ Change My Callsign / Name")
+
+                // Section 3: Registered Contacts
+                for (c in contacts) {
+                    if (c.friendStatus == "PENDING_RECEIVED") continue // already shown
+                    val badge = when {
+                        c.isFriend -> "🛡️ FRIEND"
+                        c.friendStatus == "PENDING_SENT" -> "⏳ REQUEST SENT"
+                        else -> "👤 CONTACT"
+                    }
+                    items.add("$badge: @${c.peerId} (${c.trustScore}%)")
+                }
+
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("👥 Civilian Trust & Friends Directory")
+                    .setItems(items.toTypedArray()) { _, which ->
+                        val item = items[which]
+                        when {
+                            item.startsWith("📥 PENDING REQUEST") -> {
+                                val peer = item.substringAfter("@").substringBefore(" ").trim()
+                                showIncomingRequestDialog(peer)
+                            }
+                            item.startsWith("➕ Send Friend Request") -> {
+                                showAddNewContactDialog()
+                            }
+                            item.startsWith("📱 Show My Friend QR Code") -> {
+                                showMyFriendQrDialog()
+                            }
+                            item == "📷 Scan Peer QR Code (Pair Instantly)" -> {
+                                qrScannerLauncher.launch(Intent(this@MainActivity, QrScannerActivity::class.java))
+                            }
+                            item == "✏️ Change My Callsign / Name" -> {
+                                showChooseNameDialog()
+                            }
+                            else -> {
+                                val peer = item.substringAfter("@").substringBefore(" ").trim()
+                                val contact = contacts.find { it.peerId == peer }
+                                if (contact != null) {
+                                    showContactDetailDialog(contact)
+                                }
+                            }
+                        }
+                    }
+                    .setNegativeButton("Done", null)
+                    .show()
+            }
+        }
+    }
+
+    private fun showIncomingRequestDialog(peerId: String) {
+        val options = arrayOf(
+            "✅ Accept Friend Request (Add to Trusted Friends)",
+            "❌ Decline Friend Request"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Friend Request from @$peerId")
+            .setMessage("Do you want to establish mutual trust with @$peerId on the mesh?")
+            .setItems(options) { _, which ->
+                if (which == 0) {
+                    acceptFriendRequest(peerId)
+                } else {
+                    rejectFriendRequest(peerId)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showAddNewContactDialog() {
+        val input = EditText(this).apply {
+            hint = "e.g. Civilian-M14 or Peer ID"
+            setPadding(48, 24, 48, 24)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("➕ Send Friend Request")
+            .setMessage("Enter the peer callsign or device ID to request connection:")
+            .setView(input)
+            .setPositiveButton("Send Request") { _, _ ->
+                val peerId = input.text.toString().trim()
+                if (peerId.isNotEmpty()) {
+                    sendFriendRequest(peerId)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showContactDetailDialog(contact: CivilianContact) {
+        val options = arrayOf(
+            "❌ Delete Friend / Remove Contact",
+            "⭐ Increase Trust Score (+10)",
+            "⚠️ Decrease Trust Score (-10)"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Manage @${contact.peerId}")
+            .setMessage("Status: ${if (contact.isFriend) "🛡️ Trusted Friend" else "👤 Contact (${contact.friendStatus})"}\nTrust Score: ${contact.trustScore}%\nNotes: ${contact.notes ?: "None"}")
+            .setItems(options) { _, which ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    when (which) {
+                        0 -> {
+                            shredder.deleteContact(contact.peerId)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, "Deleted contact @${contact.peerId}", Toast.LENGTH_SHORT).show()
+                                loadBroadcastMessages()
+                                showFriendsManagementDialog()
+                            }
+                        }
+                        1 -> {
+                            val newScore = (contact.trustScore + 10).coerceAtMost(100)
+                            shredder.saveContact(contact.copy(trustScore = newScore))
+                            network.disaster.management.security.HostileActorDetector.shared.setPeerTrust(
+                                contact.peerId,
+                                newScore,
+                                network.disaster.management.map.ActorClassification.VERIFIED_CIVILIAN
+                            )
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, "Score increased to $newScore%", Toast.LENGTH_SHORT).show()
+                                loadBroadcastMessages()
+                                showFriendsManagementDialog()
+                            }
+                        }
+                        2 -> {
+                            val newScore = (contact.trustScore - 10).coerceAtLeast(0)
+                            shredder.saveContact(contact.copy(trustScore = newScore))
+                            network.disaster.management.security.HostileActorDetector.shared.setPeerTrust(
+                                contact.peerId,
+                                newScore,
+                                if (newScore < 40) network.disaster.management.map.ActorClassification.SUSPICIOUS_ACTOR else network.disaster.management.map.ActorClassification.UNVERIFIED_CIVILIAN
+                            )
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@MainActivity, "Score decreased to $newScore%", Toast.LENGTH_SHORT).show()
+                                loadBroadcastMessages()
+                                showFriendsManagementDialog()
+                            }
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("Back") { _, _ -> showFriendsManagementDialog() }
+            .show()
+    }
+
+    private fun sendFriendRequest(targetPeer: String) {
+        val myId = UserIdentityManager.getUserName(this)
+        if (targetPeer.isEmpty() || targetPeer == myId) {
+            Toast.makeText(this, "Cannot send friend request to yourself", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val contact = CivilianContact(
+                peerId = targetPeer,
+                displayName = targetPeer,
+                isFriend = false,
+                trustScore = 75,
+                trustBadge = "PENDING_REQUEST",
+                notes = "Sent friend request",
+                friendStatus = "PENDING_SENT"
+            )
+            shredder.saveContact(contact)
+
+            val msgId = UUID.randomUUID().toString()
+            val reqText = "🤝 FRIEND REQUEST: @$myId requests connection with @$targetPeer"
+            val msg = FeedMessage(
+                id = msgId,
+                groupId = "GROUP_PUBLIC_BROADCAST",
+                senderName = myId,
+                content = reqText,
+                type = MessageType.FRIEND_REQUEST,
+                timestamp = System.currentTimeMillis(),
+                isEmergency = false,
+                targetPeer = targetPeer
+            )
+            shredder.insertMessage(msg)
+            broadcastMeshEnvelope(msgId, myId, reqText, MessageType.FRIEND_REQUEST, targetPeer)
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "🤝 Friend request sent to @$targetPeer!", Toast.LENGTH_SHORT).show()
+                loadBroadcastMessages()
+            }
+        }
+    }
+
+    private fun acceptFriendRequest(peerId: String) {
+        val myId = UserIdentityManager.getUserName(this)
+        lifecycleScope.launch(Dispatchers.IO) {
+            shredder.saveContact(
+                CivilianContact(
+                    peerId = peerId,
+                    displayName = peerId,
+                    isFriend = true,
+                    trustScore = 95,
+                    trustBadge = "FRIEND",
+                    notes = "Accepted friend request",
+                    friendStatus = "ACCEPTED"
+                )
+            )
+            network.disaster.management.security.HostileActorDetector.shared.setPeerTrust(
+                peerId,
+                95,
+                network.disaster.management.map.ActorClassification.VERIFIED_CIVILIAN
+            )
+
+            val msgId = UUID.randomUUID().toString()
+            val acceptText = "🎉 FRIEND REQUEST ACCEPTED: @$myId connected with @$peerId"
+            val msg = FeedMessage(
+                id = msgId,
+                groupId = "GROUP_PUBLIC_BROADCAST",
+                senderName = myId,
+                content = acceptText,
+                type = MessageType.FRIEND_ACCEPT,
+                timestamp = System.currentTimeMillis(),
+                isEmergency = false,
+                targetPeer = peerId
+            )
+            shredder.insertMessage(msg)
+            broadcastMeshEnvelope(msgId, myId, acceptText, MessageType.FRIEND_ACCEPT, peerId)
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "🛡️ You and @$peerId are now Trusted Friends!", Toast.LENGTH_LONG).show()
+                loadBroadcastMessages()
+            }
+        }
+    }
+
+    private fun rejectFriendRequest(peerId: String) {
+        val myId = UserIdentityManager.getUserName(this)
+        lifecycleScope.launch(Dispatchers.IO) {
+            shredder.updateFriendStatus(peerId, "REJECTED", isFriend = false)
+
+            val msgId = UUID.randomUUID().toString()
+            val rejectText = "❌ Friend request declined between @$myId and @$peerId"
+            val msg = FeedMessage(
+                id = msgId,
+                groupId = "GROUP_PUBLIC_BROADCAST",
+                senderName = myId,
+                content = rejectText,
+                type = MessageType.FRIEND_REJECT,
+                timestamp = System.currentTimeMillis(),
+                isEmergency = false,
+                targetPeer = peerId
+            )
+            shredder.insertMessage(msg)
+            broadcastMeshEnvelope(msgId, myId, rejectText, MessageType.FRIEND_REJECT, peerId)
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "Declined friend request from @$peerId", Toast.LENGTH_SHORT).show()
+                loadBroadcastMessages()
+            }
+        }
+    }
+
+    private fun showAppPropagationDialog() {
+        val apkServer = ApkPropagationServer.shared ?: ApkPropagationServer(this).also { it.start() }
+        val portalUrl = apkServer.getPortalUrl()
+
+        val options = arrayOf(
+            "📲 Send SMS / Message with App Download Instructions",
+            "📤 Beam APK Directly (Quick Share / Nearby Share / Bluetooth)",
+            "📶 Show Wi-Fi Hotspot Portal & Camera QR Code"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("📲 Propagate Disaster Mesh App")
+            .setMessage("Propagate DisasterManagement app to non-app survivors without cell service:")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> {
+                        val smsIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            val smsText = "🚨 EMERGENCY DISASTER MESH: Download DisasterManagement app to communicate without cell towers or internet!\n" +
+                                    "Connect to Wi-Fi hotspot and open browser to: $portalUrl\n" +
+                                    "Or download online: https://github.com/disaster-mesh/app/releases"
+                            putExtra(Intent.EXTRA_TEXT, smsText)
+                        }
+                        startActivity(Intent.createChooser(smsIntent, "Send Disaster App Invite via SMS / Messenger"))
+                    }
+                    1 -> {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val apkFile = apkServer.exportApkForSharing()
+                            withContext(Dispatchers.Main) {
+                                if (apkFile != null && apkFile.exists()) {
+                                    val contentUri = FileProvider.getUriForFile(
+                                        this@MainActivity,
+                                        "${packageName}.fileprovider",
+                                        apkFile
+                                    )
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/vnd.android.package-archive"
+                                        putExtra(Intent.EXTRA_STREAM, contentUri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    startActivity(Intent.createChooser(shareIntent, "Beam APK (Nearby Share / Bluetooth)"))
+                                } else {
+                                    Toast.makeText(this@MainActivity, "Could not prepare APK for sharing", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                    2 -> {
+                        val bmp = apkServer.generatePortalQr(512)
+                        val iv = ImageView(this).apply {
+                            if (bmp != null) setImageBitmap(bmp)
+                            setPadding(32, 24, 32, 24)
+                        }
+                        AlertDialog.Builder(this)
+                            .setTitle("📶 Offline Hotspot Portal")
+                            .setMessage("1. Ask survivor to connect to your Wi-Fi Hotspot.\n2. Point camera at this QR code or open browser to:\n👉 $portalUrl\n\nInstant offline sideloading (no internet required).")
+                            .setView(iv)
+                            .setPositiveButton("Close", null)
+                            .show()
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private suspend fun broadcastMeshEnvelope(
+        msgId: String,
+        senderId: String,
+        content: String,
+        type: MessageType,
+        targetPeer: String? = null,
+        replyId: String? = null,
+        replySender: String? = null,
+        replyText: String? = null
+    ) {
+        try {
+            val now = System.currentTimeMillis()
+            val json = org.json.JSONObject().apply {
+                put("id", msgId)
+                put("groupId", "GROUP_PUBLIC_BROADCAST")
+                put("senderName", senderId)
+                put("content", content)
+                put("type", type.name)
+                put("timestamp", now)
+                put("isEmergency", false)
+                if (!targetPeer.isNullOrEmpty()) {
+                    put("targetPeer", targetPeer)
+                }
+                if (!replyId.isNullOrEmpty()) {
+                    put("replyToId", replyId)
+                }
+                if (!replySender.isNullOrEmpty()) {
+                    put("replyToSender", replySender)
+                }
+                if (!replyText.isNullOrEmpty()) {
+                    put("replyToText", replyText)
+                }
+            }.toString()
+            val inputBytes = json.toByteArray(Charsets.UTF_8)
+            val groupKey = ByteArray(32) { 0x01 } // Shared Public Broadcast Group Key
+            val nonce = ByteArray(12).also { secureRandom.nextBytes(it) }
+            val aad = "DISASTER-MESH-V1".toByteArray(Charsets.UTF_8)
+            val (ciphertext, macTag) = hybridEngine.encryptPayloadTier1(groupKey, nonce, aad, inputBytes)
+
+            val bundleId = ByteArray(32).also { secureRandom.nextBytes(it) }
+            val x25519PubBytes = ByteArray(32).also { secureRandom.nextBytes(it) }
+
+            val diff = batteryManager.getOptimalPoWDifficulty(isEmergency = false)
+            val envelope = EnvelopeFormat.Tier1Envelope(
+                hopLimit = 7.toByte(),
+                creationEpoch = now,
+                ttlExpiry = now + (24 * 3600 * 1000L),
+                powDifficulty = diff,
+                powNonce = 0,
+                bundleId = bundleId,
+                rollingRecipientTag = localRecipientTag,
+                ephemeralX25519Pub = x25519PubBytes,
+                mlKemCiphertext = ByteArray(1088),
+                nonce = nonce,
+                bucketLength = ciphertext.size,
+                encryptedBody = ciphertext,
+                macTag = macTag
+            )
+            val rawSerialized = EnvelopeFormat.serializeTier1(envelope)
+            val solvedNonce = EnvelopeFormat.solvePoW(rawSerialized, diff)
+            envelope.powNonce = solvedNonce
+            val finalSerialized = EnvelopeFormat.serializeTier1(envelope)
+
+            val verdict = router.processIngressPacket(finalSerialized)
+            network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(finalSerialized)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Transmission error: ${e.message}")
+        }
+    }
+
+    private fun broadcastReport(text: String) {
+        val replyId = pendingReplyMessage?.id
+        val replySender = pendingReplyMessage?.senderName
+        val replyText = pendingReplyMessage?.content?.take(100)
+        clearReplyDraft()
+
+        val locationToAttach = pendingLocationAttachment
+        clearLocationAttachment()
+
+        val finalText = if (locationToAttach != null && !text.contains("[LOC:")) {
+            "$text [$locationToAttach]"
+        } else {
+            text
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val senderId = UserIdentityManager.getUserName(this@MainActivity)
             val msgId = UUID.randomUUID().toString()
             val now = System.currentTimeMillis()
 
@@ -637,76 +1475,33 @@ class MainActivity : AppCompatActivity() {
                 id = msgId,
                 groupId = "GROUP_PUBLIC_BROADCAST",
                 senderName = senderId,
-                content = text,
+                content = finalText,
                 type = MessageType.TEXT,
                 timestamp = now,
-                isEmergency = false
+                isEmergency = false,
+                replyToId = replyId,
+                replyToSender = replySender,
+                replyToText = replyText
             )
             shredder.insertMessage(msg)
+            broadcastMeshEnvelope(msgId, senderId, finalText, MessageType.TEXT, null, replyId, replySender, replyText)
 
-            try {
-                val json = org.json.JSONObject().apply {
-                    put("id", msgId)
-                    put("groupId", "GROUP_PUBLIC_BROADCAST")
-                    put("senderName", senderId)
-                    put("content", text)
-                    put("type", MessageType.TEXT.name)
-                    put("timestamp", now)
-                    put("isEmergency", false)
-                }.toString()
-                val inputBytes = json.toByteArray(Charsets.UTF_8)
-                val groupKey = ByteArray(32) { 0x01 } // Shared Public Broadcast Group Key
-                val nonce = ByteArray(12).also { secureRandom.nextBytes(it) }
-                val aad = "DISASTER-MESH-V1".toByteArray(Charsets.UTF_8)
-                val (ciphertext, macTag) = hybridEngine.encryptPayloadTier1(groupKey, nonce, aad, inputBytes)
-
-                val bundleId = ByteArray(32).also { secureRandom.nextBytes(it) }
-                val x25519PubBytes = ByteArray(32).also { secureRandom.nextBytes(it) }
-
-                val diff = batteryManager.getOptimalPoWDifficulty(isEmergency = false)
-                val envelope = EnvelopeFormat.Tier1Envelope(
-                    hopLimit = 7.toByte(),
-                    creationEpoch = now,
-                    ttlExpiry = now + (24 * 3600 * 1000L),
-                    powDifficulty = diff,
-                    powNonce = 0,
-                    bundleId = bundleId,
-                    rollingRecipientTag = localRecipientTag,
-                    ephemeralX25519Pub = x25519PubBytes,
-                    mlKemCiphertext = ByteArray(1088),
-                    nonce = nonce,
-                    bucketLength = ciphertext.size,
-                    encryptedBody = ciphertext,
-                    macTag = macTag
-                )
-                val rawSerialized = EnvelopeFormat.serializeTier1(envelope)
-                val solvedNonce = EnvelopeFormat.solvePoW(rawSerialized, diff)
-                envelope.powNonce = solvedNonce
-                val finalSerialized = EnvelopeFormat.serializeTier1(envelope)
-
-                val verdict = router.processIngressPacket(finalSerialized)
-                network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(finalSerialized)
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Report Broadcasted | $verdict (Pool B)", Toast.LENGTH_SHORT).show()
-                    loadBroadcastMessages()
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Transmission error: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "Report Broadcasted (Pool B)", Toast.LENGTH_SHORT).show()
+                loadBroadcastMessages()
             }
         }
     }
 
     private fun broadcastDistressAlert(customText: String? = null) {
         lifecycleScope.launch(Dispatchers.IO) {
+            val senderId = UserIdentityManager.getUserName(this@MainActivity)
             val coords = gpsHelper.getFastestCoordinates()
             val coordStr = coords?.toBeaconString() ?: "LOC:UNKNOWN"
             val emergencyText = if (customText != null) {
-                "$customText [$coordStr]"
+                "$customText (From: @$senderId) [$coordStr]"
             } else {
-                "DISTRESS: CIVIL LIFE-SAFETY RELAY NEEDED [$coordStr]"
+                "DISTRESS: CIVIL LIFE-SAFETY RELAY NEEDED (From: @$senderId) [$coordStr]"
             }
             val emergencyAlert = emergencyText.toByteArray(Charsets.UTF_8)
 
@@ -736,7 +1531,7 @@ class MainActivity : AppCompatActivity() {
             val msg = FeedMessage(
                 id = UUID.randomUUID().toString(),
                 groupId = "GROUP_PUBLIC_BROADCAST",
-                senderName = "EMERGENCY BEACON",
+                senderName = senderId,
                 content = emergencyText,
                 type = MessageType.EMERGENCY,
                 timestamp = System.currentTimeMillis(),
@@ -784,6 +1579,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showJoinGroupDialog() {
+        val options = arrayOf(
+            "📷 Scan QR Code with Camera (Instant)",
+            "⌨️ Enter / Paste QR String Manually"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Join Civilian Mesh Group")
+            .setItems(options) { _, which ->
+                if (which == 0) {
+                    qrScannerLauncher.launch(Intent(this, QrScannerActivity::class.java))
+                } else {
+                    showManualGroupPasteDialog()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showManualGroupPasteDialog() {
         val et = EditText(this).apply {
             hint = "Paste DISASTER_GRP:... or scanned QR payload"
             setPadding(32, 32, 32, 32)
@@ -791,8 +1604,8 @@ class MainActivity : AppCompatActivity() {
             setHintTextColor(0xFF888888.toInt())
         }
         AlertDialog.Builder(this)
-            .setTitle("Join Civilian Mesh Group")
-            .setMessage("Enter or scan the group invite QR string to import the channel key:")
+            .setTitle("Import Group Key")
+            .setMessage("Enter or paste the group invite QR string to import the channel key:")
             .setView(et)
             .setPositiveButton("Import Group") { _, _ ->
                 val payload = et.text.toString().trim()
@@ -801,7 +1614,7 @@ class MainActivity : AppCompatActivity() {
                         val imported = shredder.importGroupFromQr(payload)
                         withContext(Dispatchers.Main) {
                             if (imported != null) {
-                                Toast.makeText(this@MainActivity, "Joined group: ${imported.name}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@MainActivity, "✅ Joined group: ${imported.name}", Toast.LENGTH_SHORT).show()
                                 loadGroups()
                             } else {
                                 Toast.makeText(this@MainActivity, "Invalid group QR code", Toast.LENGTH_SHORT).show()
@@ -819,6 +1632,8 @@ class MainActivity : AppCompatActivity() {
             val groups = shredder.getAllGroups()
             withContext(Dispatchers.Main) {
                 groupAdapter.updateGroups(groups)
+                val emptyTv = findViewById<TextView>(R.id.tvEmptyGroups)
+                emptyTv?.visibility = if (groups.isEmpty()) View.VISIBLE else View.GONE
             }
         }
     }
@@ -949,7 +1764,7 @@ class MainActivity : AppCompatActivity() {
                     else -> MessageType.FILE
                 }
 
-                val senderId = "Node-" + (Build.MODEL.takeLast(4).ifEmpty { "ME" })
+                val senderId = UserIdentityManager.getUserName(this@MainActivity)
                 val feedMsg = FeedMessage(
                     id = UUID.randomUUID().toString(),
                     groupId = "GROUP_PUBLIC_BROADCAST",
@@ -1041,34 +1856,56 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
+        val btnWifiDirectConnect = findViewById<Button>(R.id.btnWifiDirectConnect)
+        val btnEmergencyHotspot = findViewById<Button>(R.id.btnEmergencyHotspot)
+
+        btnWifiDirectConnect?.setOnClickListener {
+            network.disaster.management.transport.WifiDirectMeshSupervisor.shared?.triggerPeerDiscoveryAndAutoConnect()
+            network.disaster.management.transport.BleMeshSupervisor.shared?.triggerImmediateScanAndSync()
+            Toast.makeText(this, "Scanning & auto-pairing nearby phones (Wi-Fi Direct & BLE)...", Toast.LENGTH_SHORT).show()
+        }
+
+        btnEmergencyHotspot?.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("⚡ Off-Grid Emergency Hotspot")
+                .setMessage("Connect devices directly without an existing Wi-Fi network:\n\n• Option 1: Create Wi-Fi Direct Group (zero setup, connects directly)\n• Option 2: Open Android Hotspot Settings to broadcast Wi-Fi AP")
+                .setPositiveButton("Wi-Fi Direct Group") { _, _ ->
+                    network.disaster.management.transport.WifiDirectMeshSupervisor.shared?.createAutonomousGroup()
+                    Toast.makeText(this, "Wi-Fi Direct Group Created (GO IP: 192.168.49.1)", Toast.LENGTH_LONG).show()
+                }
+                .setNeutralButton("Hotspot Settings") { _, _ ->
+                    try {
+                        startActivity(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
+                    } catch (_: Exception) {
+                        try {
+                            startActivity(Intent("android.settings.TETHER_SETTINGS"))
+                        } catch (_: Exception) {
+                            Toast.makeText(this, "Please open Android Settings -> Hotspot & Tethering", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
         val swBle = findViewById<Switch>(R.id.swBle)
         val swMic = findViewById<Switch>(R.id.swMic)
         val swCam = findViewById<Switch>(R.id.swCam)
         val btnOpenSettings = findViewById<Button>(R.id.btnOpenSettings)
         val btnPanic = findViewById<Button>(R.id.btnPanic)
 
-        swBle.setOnCheckedChangeListener { _, isChecked ->
+        swBle?.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(
-                            Manifest.permission.BLUETOOTH_SCAN,
-                            Manifest.permission.BLUETOOTH_ADVERTISE,
-                            Manifest.permission.BLUETOOTH_CONNECT
-                        ),
-                        101
-                    )
+                val missing = getMissingPermissions()
+                if (missing.isEmpty()) {
+                    network.disaster.management.transport.BleMeshSupervisor.shared?.startMesh()
+                    Toast.makeText(this, "BLE Mesh Active (Zero-Wi-Fi Mode)", Toast.LENGTH_SHORT).show()
                 } else {
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(
-                            Manifest.permission.BLUETOOTH,
-                            Manifest.permission.ACCESS_FINE_LOCATION
-                        ),
-                        101
-                    )
+                    permissionLauncher.launch(missing.toTypedArray())
                 }
+            } else {
+                network.disaster.management.transport.BleMeshSupervisor.shared?.stopMesh()
+                Toast.makeText(this, "BLE Mesh Disabled", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -1206,38 +2043,44 @@ class MainActivity : AppCompatActivity() {
                 val peerIps = network.disaster.management.transport.WifiMeshSupervisor.shared?.getActivePeerIps() ?: emptyList()
                 val myIps = network.disaster.management.transport.WifiMeshSupervisor.shared?.getLocalIps() ?: emptyList()
                 val blePeers = network.disaster.management.transport.BleMeshSupervisor.shared?.getActivePeerCount() ?: 0
+                val p2pPeers = network.disaster.management.transport.WifiDirectMeshSupervisor.shared?.getActivePeerCount() ?: 0
+                val p2pStatus = network.disaster.management.transport.WifiDirectMeshSupervisor.shared?.connectionStatus?.value ?: "Wi-Fi Direct Standby"
 
                 withContext(Dispatchers.Main) {
                     broadcastAdapter.updateMessages(messages)
                     updateStorageQuotaDisplay()
 
+                    val totalPeers = wifiPeers + blePeers + p2pPeers
                     val statusMsg = when {
-                        wifiPeers > 0 && blePeers > 0 ->
-                            "Status: Mesh Active (Wi-Fi: $wifiPeers, BLE: $blePeers) | Quotas Enforced"
-                        wifiPeers > 0 ->
-                            "Status: Wi-Fi Hotspot Active ($wifiPeers Peer${if (wifiPeers > 1) "s" else ""}: ${peerIps.joinToString(", ")}) | Quotas Enforced"
-                        blePeers > 0 ->
-                            "Status: BLE Mesh Active ($blePeers Peer${if (blePeers > 1) "s" else ""}) | Wi-Fi Off | Quotas Enforced"
+                        totalPeers > 0 -> {
+                            val mediums = mutableListOf<String>()
+                            if (wifiPeers > 0) mediums.add("Wi-Fi: $wifiPeers")
+                            if (p2pPeers > 0) mediums.add("P2P: $p2pPeers")
+                            if (blePeers > 0) mediums.add("BLE: $blePeers")
+                            "Status: Mesh Active (${mediums.joinToString(", ")}) | Quotas Enforced"
+                        }
                         myIps.isNotEmpty() ->
-                            "Status: Wi-Fi Ready (${myIps.first()}) | BLE Active | Searching Peers..."
+                            "Status: Wi-Fi Ready (${myIps.first()}) | BLE & P2P Active | Searching Peers..."
                         else ->
-                            "Status: Mesh Active (BLE & Acoustic) | Tri-Pool Quotas Enforced"
+                            "Status: Off-Grid Mesh Active (BLE & Wi-Fi Direct) | Zero-Network Mode"
                     }
                     findViewById<TextView>(R.id.tvStatus)?.text = statusMsg
 
                     val wifiDetails = when {
-                        wifiPeers > 0 && blePeers > 0 ->
-                            "Wi-Fi: ${peerIps.joinToString(", ")} | BLE Peers: $blePeers Connected"
                         wifiPeers > 0 ->
                             "Connected Wi-Fi Peers: ${peerIps.joinToString(", ")} | Port: 42425"
-                        blePeers > 0 ->
-                            "BLE Mesh Active: $blePeers Peer${if (blePeers > 1) "s" else ""} Connected (Zero-Wi-Fi Mode)"
                         myIps.isNotEmpty() ->
-                            "Listening on: ${myIps.joinToString(", ")}:42425 | BLE Scanning Active"
+                            "Listening on: ${myIps.joinToString(", ")}:42425 | Hotspot Mesh Active"
                         else ->
-                            "Off-Grid Mode | BLE & Acoustic Active (Wi-Fi Not Required)"
+                            "Off-Grid Mode | Wi-Fi Direct P2P & BLE Active (Router Not Required)"
                     }
                     findViewById<TextView>(R.id.tvWifiMeshDetails)?.text = wifiDetails
+
+                    findViewById<TextView>(R.id.tvWifiDirectDetails)?.text =
+                        if (p2pPeers > 0) "Wi-Fi Direct: $p2pPeers Peer(s) Connected (54+ Mbps Link)" else p2pStatus
+
+                    findViewById<TextView>(R.id.tvBleMeshDetails)?.text =
+                        "BLE Mesh: $blePeers Peer${if (blePeers != 1) "s" else ""} Connected (Zero-Wi-Fi Full Duplex)"
                 }
             }
         }
@@ -1341,10 +2184,12 @@ class MainActivity : AppCompatActivity() {
 
     private var meshServicesStarted = false
     private fun startMeshServicesSafely() {
-        if (meshServicesStarted) return
         meshServicesStarted = true
         try {
             MeshForegroundService.start(this)
+            network.disaster.management.transport.BleMeshSupervisor.shared?.startMesh()
+            network.disaster.management.transport.WifiDirectMeshSupervisor.shared?.startMesh()
+            network.disaster.management.transport.WifiMeshSupervisor.shared?.startMesh()
         } catch (_: Throwable) {}
     }
 

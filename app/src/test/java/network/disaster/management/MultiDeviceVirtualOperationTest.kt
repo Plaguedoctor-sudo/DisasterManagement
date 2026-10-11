@@ -289,7 +289,11 @@ class MultiDeviceVirtualOperationTest {
                                     content = json.getString("content"),
                                     type = MessageType.valueOf(json.optString("type", "TEXT")),
                                     timestamp = json.optLong("timestamp", System.currentTimeMillis()),
-                                    isEmergency = json.optBoolean("isEmergency", false)
+                                    isEmergency = json.optBoolean("isEmergency", false),
+                                    replyToId = json.optString("replyToId").takeIf { it.isNotEmpty() },
+                                    replyToSender = json.optString("replyToSender").takeIf { it.isNotEmpty() },
+                                    replyToText = json.optString("replyToText").takeIf { it.isNotEmpty() },
+                                    targetPeer = json.optString("targetPeer").takeIf { it.isNotEmpty() }
                                 )
                             )
                         }
@@ -418,4 +422,279 @@ class MultiDeviceVirtualOperationTest {
             clientSocket.close()
             server.close()
         }
+
+    @Test(timeout = 8000)
+    fun testWifiDirectP2pZeroNetworkExchange() {
+        // Simulate 2 devices that are NOT connected to any Wi-Fi router or hotspot
+        // Device 1 becomes Wi-Fi Direct Group Owner (GO)
+        // Device 2 connects autonomously via Wi-Fi Direct socket on SYNC_PORT
+        val goNode = VirtualNode("GO_Phone_Civilian", 45001)
+        val clientNode = VirtualNode("Client_Phone_Civilian", 45002)
+
+        val server = ServerSocket(0)
+        val port = server.localPort
+
+        var goConnected = false
+        val goReceivedMessages = CopyOnWriteArrayList<FeedMessage>()
+
+        val goServerThread = thread(start = true, isDaemon = true) {
+            try {
+                val socket = server.accept()
+                goConnected = true
+                val input = socket.getInputStream()
+                val readBuf = ByteArray(4096)
+
+                while (!socket.isClosed) {
+                    val op = input.read()
+                    if (op == -1) break
+                    when (op.toByte()) {
+                        network.disaster.management.transport.WifiDirectMeshSupervisor.MSG_BLOOM_SUMMARY -> {
+                            val summary = ByteArray(8 + 8 + BundleBloomFilter.FILTER_SIZE_BYTES)
+                            if (readExact(input, summary)) {
+                                val bloom = BundleBloomFilter.fromBundleIds(emptyList())
+                                val resp = java.nio.ByteBuffer.allocate(8 + 8 + BundleBloomFilter.FILTER_SIZE_BYTES).order(java.nio.ByteOrder.BIG_ENDIAN)
+                                resp.putLong(System.currentTimeMillis())
+                                resp.putLong(2L)
+                                resp.put(bloom.filterBytes)
+                                writeFrameSafe(socket, network.disaster.management.transport.WifiDirectMeshSupervisor.MSG_BLOOM_SUMMARY, resp.array())
+                            }
+                        }
+                        network.disaster.management.transport.WifiDirectMeshSupervisor.MSG_BUNDLE_PAYLOAD -> {
+                            if (readExact(input, readBuf)) {
+                                processPacketOnNode(goNode, readBuf.clone())
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Client connects to Group Owner port
+        val clientSocket = Socket("127.0.0.1", port)
+        assertTrue("Wi-Fi Direct client must connect to Group Owner", clientSocket.isConnected)
+
+        // Client sends Bloom summary
+        val bloom = BundleBloomFilter.fromBundleIds(emptyList())
+        val bloomBuf = java.nio.ByteBuffer.allocate(8 + 8 + BundleBloomFilter.FILTER_SIZE_BYTES).order(java.nio.ByteOrder.BIG_ENDIAN)
+        bloomBuf.putLong(System.currentTimeMillis())
+        bloomBuf.putLong(1L)
+        bloomBuf.put(bloom.filterBytes)
+        writeFrameSafe(clientSocket, network.disaster.management.transport.WifiDirectMeshSupervisor.MSG_BLOOM_SUMMARY, bloomBuf.array())
+
+        // Client sends 4,096-byte encrypted SOS emergency packet over Wi-Fi Direct
+        val emText = "🚨 CRITICAL AID: Structural damage at Sector 4. Zero cellular or router available."
+        val emBundleId = ByteArray(32).also { secureRandom.nextBytes(it) }
+        val emEnvelope = EnvelopeFormat.EmergencyEnvelope(
+            hopLimit = 15.toByte(),
+            ttlExpirySeconds = 86400,
+            shortBundleId = emBundleId.copyOf(8),
+            ephemeralX25519Pub = ByteArray(32).also { secureRandom.nextBytes(it) },
+            nonce = ByteArray(8).also { secureRandom.nextBytes(it) },
+            ciphertext = emText.toByteArray(Charsets.UTF_8),
+            poly1305Tag = ByteArray(16).also { secureRandom.nextBytes(it) }
+        )
+        val rawEmPacket = EnvelopeFormat.serializeEmergency(emEnvelope).copyOf(4096)
+        writeFrameSafe(clientSocket, network.disaster.management.transport.WifiDirectMeshSupervisor.MSG_BUNDLE_PAYLOAD, rawEmPacket)
+
+        // Wait for GO node to ingest packet
+        val start = System.currentTimeMillis()
+        while (goNode.messages.isEmpty() && System.currentTimeMillis() - start < 4000) {
+            Thread.sleep(50)
+        }
+
+        assertTrue("Group Owner must have accepted Wi-Fi Direct client connection", goConnected)
+        assertEquals("Group Owner must ingest emergency distress beacon", 1, goNode.messages.size)
+        assertTrue(goNode.messages[0].content.contains("Structural damage at Sector 4"))
+        assertTrue(goNode.messages[0].isEmergency)
+
+        clientSocket.close()
+        server.close()
+    }
+
+    @Test(timeout = 5000)
+    fun testThreadedBroadcastReplyAndTrustworthiness() {
+        val nodeA = VirtualNode("Civilian_Node_A", 48001)
+        val nodeB = VirtualNode("Civilian_Node_B", 48002)
+
+        // 1. Node A creates an initial feed broadcast
+        val parentMsgId = "PARENT_" + UUID.randomUUID().toString().take(8)
+        val parentText = "Bridge crossing safe for transport."
+
+        // 2. Node B drafts a threaded reply citing Node A's broadcast
+        val replyMsgId = "REPLY_" + UUID.randomUUID().toString().take(8)
+        val replyContent = "Acknowledged! Evacuating civilian team via bridge."
+
+        val json = JSONObject().apply {
+            put("id", replyMsgId)
+            put("groupId", "GROUP_PUBLIC_BROADCAST")
+            put("senderName", "Civilian_Node_B")
+            put("content", replyContent)
+            put("type", MessageType.TEXT.name)
+            put("timestamp", System.currentTimeMillis())
+            put("isEmergency", false)
+            put("replyToId", parentMsgId)
+            put("replyToSender", "Civilian_Node_A")
+            put("replyToText", parentText)
+        }.toString()
+
+        val groupKey = ByteArray(32) { 0x01 }
+        val nonce = ByteArray(12).also { secureRandom.nextBytes(it) }
+        val aad = "DISASTER-MESH-V1".toByteArray(Charsets.UTF_8)
+        val inputBytes = json.toByteArray(Charsets.UTF_8)
+        val (ciphertext, macTag) = hybridEngine.encryptPayloadTier1(groupKey, nonce, aad, inputBytes)
+
+        val bundleId = ByteArray(32).also { secureRandom.nextBytes(it) }
+        val envelope = EnvelopeFormat.Tier1Envelope(
+            hopLimit = 7.toByte(),
+            creationEpoch = System.currentTimeMillis(),
+            ttlExpiry = System.currentTimeMillis() + 86400000L,
+            powDifficulty = 2,
+            powNonce = 0,
+            bundleId = bundleId,
+            rollingRecipientTag = nodeA.recipientTag,
+            ephemeralX25519Pub = ByteArray(32).also { secureRandom.nextBytes(it) },
+            mlKemCiphertext = ByteArray(1088),
+            nonce = nonce,
+            bucketLength = ciphertext.size,
+            encryptedBody = ciphertext,
+            macTag = macTag
+        )
+        val rawSerialized = EnvelopeFormat.serializeTier1(envelope)
+        envelope.powNonce = EnvelopeFormat.solvePoW(rawSerialized, 2)
+        val finalSerialized = EnvelopeFormat.serializeTier1(envelope)
+
+        // Process ingress packet on Node A
+        processPacketOnNode(nodeA, finalSerialized)
+
+        assertEquals("Node A must ingest the incoming broadcast", 1, nodeA.messages.size)
+        val receivedReply = nodeA.messages[0]
+        assertEquals(replyMsgId, receivedReply.id)
+        assertEquals("Civilian_Node_B", receivedReply.senderName)
+        assertEquals(replyContent, receivedReply.content)
+        assertEquals(parentMsgId, receivedReply.replyToId)
+        assertEquals("Civilian_Node_A", receivedReply.replyToSender)
+        assertEquals(parentText, receivedReply.replyToText)
+
+        // 3. Test Trustworthiness adjustment and classification
+        val detector = network.disaster.management.security.HostileActorDetector.shared
+        detector.clear()
+
+        // Initially unverified
+        detector.setPeerTrust("Civilian_Node_B", 70)
+        var profile = detector.getProfile("Civilian_Node_B")
+        assertNotNull(profile)
+        assertEquals(70, profile!!.trustScore)
+        assertEquals(network.disaster.management.map.ActorClassification.UNVERIFIED_CIVILIAN, profile.classification)
+
+        // Mark as verified trusted friend
+        detector.setPeerTrust("Civilian_Node_B", 95, network.disaster.management.map.ActorClassification.VERIFIED_CIVILIAN)
+        profile = detector.getProfile("Civilian_Node_B")
+        assertEquals(95, profile!!.trustScore)
+        assertEquals(network.disaster.management.map.ActorClassification.VERIFIED_CIVILIAN, profile.classification)
+
+        // Flag as hostile infiltrator
+        detector.setPeerTrust("Civilian_Node_B", 0, network.disaster.management.map.ActorClassification.HOSTILE_INFILTRATOR)
+        profile = detector.getProfile("Civilian_Node_B")
+        assertEquals(0, profile!!.trustScore)
+        assertTrue(detector.isSenderHostile("Civilian_Node_B"))
+        assertEquals(network.disaster.management.map.ActorClassification.HOSTILE_INFILTRATOR, profile.classification)
+    }
+
+    @Test(timeout = 5000)
+    fun testFriendRequestSendAcceptRejectMesh() {
+        val nodeA = VirtualNode("Civilian_Node_A", 49001)
+        val nodeB = VirtualNode("Civilian_Node_B", 49002)
+
+        // 1. Node A sends FRIEND_REQUEST targeted to Node B
+        val reqMsgId = "REQ_" + UUID.randomUUID().toString().take(8)
+        val reqContent = "🤝 FRIEND REQUEST: @Civilian_Node_A requests connection with @Civilian_Node_B"
+        val reqJson = JSONObject().apply {
+            put("id", reqMsgId)
+            put("groupId", "GROUP_PUBLIC_BROADCAST")
+            put("senderName", "Civilian_Node_A")
+            put("content", reqContent)
+            put("type", MessageType.FRIEND_REQUEST.name)
+            put("timestamp", System.currentTimeMillis())
+            put("isEmergency", false)
+            put("targetPeer", "Civilian_Node_B")
+        }.toString()
+
+        val groupKey = ByteArray(32) { 0x01 }
+        val nonce1 = ByteArray(12).also { secureRandom.nextBytes(it) }
+        val aad = "DISASTER-MESH-V1".toByteArray(Charsets.UTF_8)
+        val (ciphertext1, macTag1) = hybridEngine.encryptPayloadTier1(groupKey, nonce1, aad, reqJson.toByteArray(Charsets.UTF_8))
+
+        val envelope1 = EnvelopeFormat.Tier1Envelope(
+            hopLimit = 7.toByte(),
+            creationEpoch = System.currentTimeMillis(),
+            ttlExpiry = System.currentTimeMillis() + 86400000L,
+            powDifficulty = 2,
+            powNonce = 0,
+            bundleId = ByteArray(32).also { secureRandom.nextBytes(it) },
+            rollingRecipientTag = nodeB.recipientTag,
+            ephemeralX25519Pub = ByteArray(32).also { secureRandom.nextBytes(it) },
+            mlKemCiphertext = ByteArray(1088),
+            nonce = nonce1,
+            bucketLength = ciphertext1.size,
+            encryptedBody = ciphertext1,
+            macTag = macTag1
+        )
+        val raw1 = EnvelopeFormat.serializeTier1(envelope1)
+        envelope1.powNonce = EnvelopeFormat.solvePoW(raw1, 2)
+        val finalReqPacket = EnvelopeFormat.serializeTier1(envelope1)
+
+        // Ingest on Node B
+        processPacketOnNode(nodeB, finalReqPacket)
+
+        assertEquals("Node B must receive the friend request packet", 1, nodeB.messages.size)
+        val receivedReq = nodeB.messages[0]
+        assertEquals(MessageType.FRIEND_REQUEST, receivedReq.type)
+        assertEquals("Civilian_Node_A", receivedReq.senderName)
+        assertEquals("Civilian_Node_B", receivedReq.targetPeer)
+
+        // 2. Node B accepts friend request by broadcasting FRIEND_ACCEPT targeted to Node A
+        val acceptMsgId = "ACC_" + UUID.randomUUID().toString().take(8)
+        val acceptContent = "🎉 FRIEND REQUEST ACCEPTED: @Civilian_Node_B connected with @Civilian_Node_A"
+        val acceptJson = JSONObject().apply {
+            put("id", acceptMsgId)
+            put("groupId", "GROUP_PUBLIC_BROADCAST")
+            put("senderName", "Civilian_Node_B")
+            put("content", acceptContent)
+            put("type", MessageType.FRIEND_ACCEPT.name)
+            put("timestamp", System.currentTimeMillis())
+            put("isEmergency", false)
+            put("targetPeer", "Civilian_Node_A")
+        }.toString()
+
+        val nonce2 = ByteArray(12).also { secureRandom.nextBytes(it) }
+        val (ciphertext2, macTag2) = hybridEngine.encryptPayloadTier1(groupKey, nonce2, aad, acceptJson.toByteArray(Charsets.UTF_8))
+
+        val envelope2 = EnvelopeFormat.Tier1Envelope(
+            hopLimit = 7.toByte(),
+            creationEpoch = System.currentTimeMillis(),
+            ttlExpiry = System.currentTimeMillis() + 86400000L,
+            powDifficulty = 2,
+            powNonce = 0,
+            bundleId = ByteArray(32).also { secureRandom.nextBytes(it) },
+            rollingRecipientTag = nodeA.recipientTag,
+            ephemeralX25519Pub = ByteArray(32).also { secureRandom.nextBytes(it) },
+            mlKemCiphertext = ByteArray(1088),
+            nonce = nonce2,
+            bucketLength = ciphertext2.size,
+            encryptedBody = ciphertext2,
+            macTag = macTag2
+        )
+        val raw2 = EnvelopeFormat.serializeTier1(envelope2)
+        envelope2.powNonce = EnvelopeFormat.solvePoW(raw2, 2)
+        val finalAcceptPacket = EnvelopeFormat.serializeTier1(envelope2)
+
+        // Ingest on Node A
+        processPacketOnNode(nodeA, finalAcceptPacket)
+
+        assertEquals("Node A must receive the friend accept packet", 1, nodeA.messages.size)
+        val receivedAccept = nodeA.messages[0]
+        assertEquals(MessageType.FRIEND_ACCEPT, receivedAccept.type)
+        assertEquals("Civilian_Node_B", receivedAccept.senderName)
+        assertEquals("Civilian_Node_A", receivedAccept.targetPeer)
+    }
 }

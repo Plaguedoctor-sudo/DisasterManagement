@@ -2,5 +2,7 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <files-path name="mesh_media" path="mesh_media" />
     <files-path name="received_media" path="received_media" />
+    <files-path name="shared_files" path="." />
     <cache-path name="app_cache" path="cache" />
+    <cache-path name="shared_apk" path="." />
 </paths>

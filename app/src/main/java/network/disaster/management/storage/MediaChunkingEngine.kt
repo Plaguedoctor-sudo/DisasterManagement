@@ -20,6 +20,7 @@ class MediaChunkingEngine(
     companion object {
         const val MAX_CHUNK_PAYLOAD = 2800 // Fits within 2864-byte payload limit
         const val FILE_HEADER_MAGIC: Short = 0x464D.toShort() // 'FM' (File Media)
+        const val MAX_FILE_SIZE_BYTES: Long = 50 * 1024 * 1024L // 50 MB safety ceiling for off-grid mesh transmission
     }
 
     data class ChunkHeader(
@@ -38,8 +39,14 @@ class MediaChunkingEngine(
     )
 
     fun chunkFileFromUri(uri: Uri): Pair<FileManifest, List<ChunkPackage>> {
-        val (fileName, _, mimeType) = resolveMetadata(uri)
+        val (fileName, metadataSize, mimeType) = resolveMetadata(uri)
+        if (metadataSize > MAX_FILE_SIZE_BYTES) {
+            throw IllegalArgumentException("File size exceeds 50MB disaster mesh limit ($metadataSize bytes)")
+        }
         val fileBytes = readFileBytes(uri)
+        if (fileBytes.size.toLong() > MAX_FILE_SIZE_BYTES) {
+            throw IllegalArgumentException("File size exceeds 50MB disaster mesh limit (${fileBytes.size} bytes)")
+        }
         return chunkBytes(fileBytes, fileName, mimeType)
     }
 

@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 class NativeMemoryLock {
     companion object {
+        @Volatile
         private var isNativeLoaded = false
         init {
             try {

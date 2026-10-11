@@ -147,6 +147,44 @@
         android:layout_weight="1"
         android:paddingVertical="8dp" />
 
+    <!-- Voluntary Location Attachment Preview Banner -->
+    <LinearLayout
+        android:id="@+id/layoutGroupLocationAttachment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#0A2540"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvGroupLocationPreview"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="📍 Attached Location: [LOC:ACQUIRING...]"
+            android:textColor="#38BDF8"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <Button
+            android:id="@+id/btnRemoveGroupLocation"
+            android:layout_width="wrap_content"
+            android:layout_height="28dp"
+            android:backgroundTint="#1E293B"
+            android:text="✕ Remove"
+            android:textColor="#E2E8F0"
+            android:textSize="10sp"
+            android:paddingHorizontal="8dp"
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp" />
+    </LinearLayout>
+
     <!-- Chat Input Area -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -157,12 +195,22 @@
         android:gravity="center_vertical">
 
         <ImageButton
+            android:id="@+id/btnAttachLocation"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="Attach Location"
+            android:src="@android:drawable/ic_menu_mylocation"
+            app:tint="#38BDF8" />
+
+        <ImageButton
             android:id="@+id/btnAttachMedia"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?android:attr/selectableItemBackground"
             android:src="@android:drawable/ic_menu_upload"
-            app:tint="#60A5FA" />
+            app:tint="#60A5FA"
+            android:layout_marginStart="4dp" />
 
         <ImageButton
             android:id="@+id/btnRecordVoice"

@@ -5,6 +5,7 @@ import android.content.Context
 import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SQLiteOpenHelper
 import network.disaster.management.model.CivilGroup
+import network.disaster.management.model.CivilianContact
 import network.disaster.management.model.FeedMessage
 import network.disaster.management.model.MessageType
 import java.io.File
@@ -74,6 +75,14 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
                 dbFile.setWritable(true, true)
                 dbFile.setExecutable(false, false)
             }
+
+            // Schema Migrations: reply columns & contacts
+            try { db.execSQL("ALTER TABLE messages ADD COLUMN reply_to_id TEXT;") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE messages ADD COLUMN reply_to_sender TEXT;") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE messages ADD COLUMN reply_to_text TEXT;") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE messages ADD COLUMN target_peer TEXT;") } catch (_: Exception) {}
+            try { db.execSQL("CREATE TABLE IF NOT EXISTS civilian_contacts (peer_id TEXT PRIMARY KEY, display_name TEXT, is_friend INTEGER, trust_score INTEGER, trust_badge TEXT, notes TEXT, added_epoch INTEGER, friend_status TEXT);") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE civilian_contacts ADD COLUMN friend_status TEXT DEFAULT 'NONE';") } catch (_: Exception) {}
         } catch (e: Exception) {
             android.util.Log.e("LowWearCryptoShredder", "Error configuring security pragmas", e)
         }
@@ -87,11 +96,14 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
         // Groups table
         db.execSQL("CREATE TABLE IF NOT EXISTS groups (group_id TEXT PRIMARY KEY, name TEXT, description TEXT, secret_key BLOB, is_broadcast INTEGER, created_epoch INTEGER);")
 
-        // Feed & Group Messages
-        db.execSQL("CREATE TABLE IF NOT EXISTS messages (msg_id TEXT PRIMARY KEY, group_id TEXT, sender_name TEXT, content TEXT, msg_type TEXT, file_name TEXT, file_size INTEGER, mime_type TEXT, local_path TEXT, timestamp INTEGER, is_emergency INTEGER);")
+        // Feed & Group Messages (with thread replies & targeted peers)
+        db.execSQL("CREATE TABLE IF NOT EXISTS messages (msg_id TEXT PRIMARY KEY, group_id TEXT, sender_name TEXT, content TEXT, msg_type TEXT, file_name TEXT, file_size INTEGER, mime_type TEXT, local_path TEXT, timestamp INTEGER, is_emergency INTEGER, reply_to_id TEXT, reply_to_sender TEXT, reply_to_text TEXT, target_peer TEXT);")
 
         // File Chunk Storage (Pool C)
         db.execSQL("CREATE TABLE IF NOT EXISTS file_chunks (file_id TEXT, chunk_index INTEGER, total_chunks INTEGER, chunk_data BLOB, PRIMARY KEY(file_id, chunk_index));")
+
+        // Civilian Contacts & Trust
+        db.execSQL("CREATE TABLE IF NOT EXISTS civilian_contacts (peer_id TEXT PRIMARY KEY, display_name TEXT, is_friend INTEGER, trust_score INTEGER, trust_badge TEXT, notes TEXT, added_epoch INTEGER, friend_status TEXT);")
 
         // Hash-Chained Merkle Audit Trail (RFC 6962 / Blueprint Section 8)
         db.execSQL("CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, entry_hash TEXT, prev_hash TEXT, timestamp INTEGER, action TEXT, actor TEXT, status TEXT, details TEXT);")
@@ -101,8 +113,9 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("CREATE TABLE IF NOT EXISTS groups (group_id TEXT PRIMARY KEY, name TEXT, description TEXT, secret_key BLOB, is_broadcast INTEGER, created_epoch INTEGER);")
-        db.execSQL("CREATE TABLE IF NOT EXISTS messages (msg_id TEXT PRIMARY KEY, group_id TEXT, sender_name TEXT, content TEXT, msg_type TEXT, file_name TEXT, file_size INTEGER, mime_type TEXT, local_path TEXT, timestamp INTEGER, is_emergency INTEGER);")
+        db.execSQL("CREATE TABLE IF NOT EXISTS messages (msg_id TEXT PRIMARY KEY, group_id TEXT, sender_name TEXT, content TEXT, msg_type TEXT, file_name TEXT, file_size INTEGER, mime_type TEXT, local_path TEXT, timestamp INTEGER, is_emergency INTEGER, reply_to_id TEXT, reply_to_sender TEXT, reply_to_text TEXT, target_peer TEXT);")
         db.execSQL("CREATE TABLE IF NOT EXISTS file_chunks (file_id TEXT, chunk_index INTEGER, total_chunks INTEGER, chunk_data BLOB, PRIMARY KEY(file_id, chunk_index));")
+        db.execSQL("CREATE TABLE IF NOT EXISTS civilian_contacts (peer_id TEXT PRIMARY KEY, display_name TEXT, is_friend INTEGER, trust_score INTEGER, trust_badge TEXT, notes TEXT, added_epoch INTEGER, friend_status TEXT);")
         db.execSQL("CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, entry_hash TEXT, prev_hash TEXT, timestamp INTEGER, action TEXT, actor TEXT, status TEXT, details TEXT);")
         seedDefaultGroups(db)
     }
@@ -208,6 +221,10 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
             put("local_path", msg.localFilePath)
             put("timestamp", msg.timestamp)
             put("is_emergency", if (msg.isEmergency) 1 else 0)
+            put("reply_to_id", msg.replyToId)
+            put("reply_to_sender", msg.replyToSender)
+            put("reply_to_text", msg.replyToText)
+            put("target_peer", msg.targetPeer)
         }
         val rowId = db.insertWithOnConflict("messages", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
         return rowId != -1L
@@ -216,9 +233,9 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
     fun getMessages(groupId: String? = null): List<FeedMessage> {
         val list = mutableListOf<FeedMessage>()
         val query = if (groupId.isNullOrEmpty()) {
-            "SELECT msg_id, group_id, sender_name, content, msg_type, file_name, file_size, mime_type, local_path, timestamp, is_emergency FROM messages ORDER BY timestamp DESC LIMIT 100"
+            "SELECT msg_id, group_id, sender_name, content, msg_type, file_name, file_size, mime_type, local_path, timestamp, is_emergency, reply_to_id, reply_to_sender, reply_to_text, target_peer FROM messages ORDER BY timestamp DESC LIMIT 100"
         } else {
-            "SELECT msg_id, group_id, sender_name, content, msg_type, file_name, file_size, mime_type, local_path, timestamp, is_emergency FROM messages WHERE group_id = ? ORDER BY timestamp ASC LIMIT 200"
+            "SELECT msg_id, group_id, sender_name, content, msg_type, file_name, file_size, mime_type, local_path, timestamp, is_emergency, reply_to_id, reply_to_sender, reply_to_text, target_peer FROM messages WHERE group_id = ? ORDER BY timestamp ASC LIMIT 200"
         }
         val args = if (groupId.isNullOrEmpty()) null else arrayOf(groupId)
         val cursor = db.rawQuery(query, args)
@@ -237,12 +254,128 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
                     mimeType = cursor.getString(7),
                     localFilePath = cursor.getString(8),
                     timestamp = cursor.getLong(9),
-                    isEmergency = cursor.getInt(10) == 1
+                    isEmergency = cursor.getInt(10) == 1,
+                    replyToId = if (!cursor.isNull(11)) cursor.getString(11) else null,
+                    replyToSender = if (!cursor.isNull(12)) cursor.getString(12) else null,
+                    replyToText = if (!cursor.isNull(13)) cursor.getString(13) else null,
+                    targetPeer = if (!cursor.isNull(14)) cursor.getString(14) else null
                 )
             )
         }
         cursor.close()
         return list
+    }
+
+    // --- Civilian Contacts & Trustworthiness Management ---
+    fun saveContact(contact: CivilianContact): Boolean {
+        val cv = ContentValues().apply {
+            put("peer_id", contact.peerId)
+            put("display_name", contact.displayName)
+            put("is_friend", if (contact.isFriend) 1 else 0)
+            put("trust_score", contact.trustScore)
+            put("trust_badge", contact.trustBadge)
+            put("notes", contact.notes)
+            put("added_epoch", contact.addedEpoch)
+            put("friend_status", contact.friendStatus)
+        }
+        val rowId = db.insertWithOnConflict("civilian_contacts", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+        return rowId != -1L
+    }
+
+    fun deleteContact(peerId: String): Boolean {
+        return db.delete("civilian_contacts", "peer_id = ?", arrayOf(peerId)) > 0
+    }
+
+    fun isFriend(peerId: String): Boolean {
+        val cursor = db.rawQuery("SELECT is_friend FROM civilian_contacts WHERE peer_id = ?", arrayOf(peerId))
+        val result = if (cursor.moveToFirst()) cursor.getInt(0) == 1 else false
+        cursor.close()
+        return result
+    }
+
+    fun getContact(peerId: String): CivilianContact? {
+        val cursor = db.rawQuery(
+            "SELECT peer_id, display_name, is_friend, trust_score, trust_badge, notes, added_epoch, friend_status FROM civilian_contacts WHERE peer_id = ?",
+            arrayOf(peerId)
+        )
+        val contact = if (cursor.moveToFirst()) {
+            CivilianContact(
+                peerId = cursor.getString(0),
+                displayName = cursor.getString(1),
+                isFriend = cursor.getInt(2) == 1,
+                trustScore = cursor.getInt(3),
+                trustBadge = cursor.getString(4) ?: "NEUTRAL",
+                notes = cursor.getString(5) ?: "",
+                addedEpoch = cursor.getLong(6),
+                friendStatus = if (!cursor.isNull(7)) cursor.getString(7) else "NONE"
+            )
+        } else null
+        cursor.close()
+        return contact
+    }
+
+    fun getAllContacts(): List<CivilianContact> {
+        val list = mutableListOf<CivilianContact>()
+        val cursor = db.rawQuery(
+            "SELECT peer_id, display_name, is_friend, trust_score, trust_badge, notes, added_epoch, friend_status FROM civilian_contacts ORDER BY is_friend DESC, trust_score DESC",
+            null
+        )
+        while (cursor.moveToNext()) {
+            list.add(
+                CivilianContact(
+                    peerId = cursor.getString(0),
+                    displayName = cursor.getString(1),
+                    isFriend = cursor.getInt(2) == 1,
+                    trustScore = cursor.getInt(3),
+                    trustBadge = cursor.getString(4) ?: "NEUTRAL",
+                    notes = cursor.getString(5) ?: "",
+                    addedEpoch = cursor.getLong(6),
+                    friendStatus = if (!cursor.isNull(7)) cursor.getString(7) else "NONE"
+                )
+            )
+        }
+        cursor.close()
+        return list
+    }
+
+    fun getPendingFriendRequests(): List<CivilianContact> {
+        val list = mutableListOf<CivilianContact>()
+        val cursor = db.rawQuery(
+            "SELECT peer_id, display_name, is_friend, trust_score, trust_badge, notes, added_epoch, friend_status FROM civilian_contacts WHERE friend_status = 'PENDING_RECEIVED' ORDER BY added_epoch DESC",
+            null
+        )
+        while (cursor.moveToNext()) {
+            list.add(
+                CivilianContact(
+                    peerId = cursor.getString(0),
+                    displayName = cursor.getString(1),
+                    isFriend = cursor.getInt(2) == 1,
+                    trustScore = cursor.getInt(3),
+                    trustBadge = cursor.getString(4) ?: "PENDING_REQUEST",
+                    notes = cursor.getString(5) ?: "",
+                    addedEpoch = cursor.getLong(6),
+                    friendStatus = if (!cursor.isNull(7)) cursor.getString(7) else "PENDING_RECEIVED"
+                )
+            )
+        }
+        cursor.close()
+        return list
+    }
+
+    fun updateFriendStatus(peerId: String, status: String, isFriend: Boolean? = null, trustScore: Int? = null): Boolean {
+        val cv = ContentValues().apply {
+            put("friend_status", status)
+            if (isFriend != null) {
+                put("is_friend", if (isFriend) 1 else 0)
+                if (isFriend) {
+                    put("trust_badge", "FRIEND")
+                }
+            }
+            if (trustScore != null) {
+                put("trust_score", trustScore)
+            }
+        }
+        return db.update("civilian_contacts", cv, "peer_id = ?", arrayOf(peerId)) > 0
     }
 
     // --- Chunked File Storage & Reassembly ---
@@ -276,13 +409,16 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
             return false
         }
         outputFile.parentFile?.mkdirs()
-        FileOutputStream(outputFile).use { fos ->
-            while (cursor.moveToNext()) {
-                val data = cursor.getBlob(0)
-                if (data != null) fos.write(data)
+        try {
+            FileOutputStream(outputFile).use { fos ->
+                while (cursor.moveToNext()) {
+                    val data = cursor.getBlob(0)
+                    if (data != null) fos.write(data)
+                }
             }
+        } finally {
+            cursor.close()
         }
-        cursor.close()
         return true
     }
 
@@ -294,8 +430,9 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
             else -> POOL_B_LIMIT_BYTES
         }
 
-        if (getPoolSizeBytes(poolType) + payload.size > limit) {
-            evictOldestInPool(poolType)
+        while (getPoolSizeBytes(poolType) + payload.size > limit) {
+            val evicted = evictOldestInPool(poolType)
+            if (!evicted) break
         }
 
         val subkey = ByteArray(32).also { secureRandom.nextBytes(it) }
@@ -422,14 +559,16 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
     }
 
 
-    private fun evictOldestInPool(poolType: String) {
+    private fun evictOldestInPool(poolType: String): Boolean {
         val cursor = db.rawQuery("SELECT bundle_id FROM bundle_store WHERE pool_type = ? ORDER BY timestamp ASC LIMIT 1", arrayOf(poolType))
-        if (cursor.moveToFirst()) {
+        return if (cursor.moveToFirst()) {
             val oldestId = cursor.getBlob(0)
             cursor.close()
             lowWearShred(oldestId)
+            true
         } else {
             cursor.close()
+            false
         }
     }
 
