@@ -167,57 +167,60 @@ class OpticalFountainActivity : AppCompatActivity() {
 
     @OptIn(ExperimentalGetImage::class)
     private fun processCameraFrame(imageProxy: ImageProxy) {
-        val mediaImage = imageProxy.image
-        if (mediaImage != null && mediaImage.format == ImageFormat.YUV_420_888) {
-            val yPlane = mediaImage.planes[0]
-            val yBuffer = yPlane.buffer
-            val yBytes = ByteArray(yBuffer.remaining())
-            yBuffer.get(yBytes)
+        try {
+            val mediaImage = imageProxy.image
+            if (mediaImage != null && mediaImage.format == ImageFormat.YUV_420_888) {
+                val yPlane = mediaImage.planes[0]
+                val yBuffer = yPlane.buffer
+                val yBytes = ByteArray(yBuffer.remaining())
+                yBuffer.get(yBytes)
 
-            val width = imageProxy.width
-            val height = imageProxy.height
-            val rowStride = yPlane.rowStride
+                val width = imageProxy.width
+                val height = imageProxy.height
+                val rowStride = yPlane.rowStride
 
-            val source = PlanarYUVLuminanceSource(
-                yBytes, rowStride, height,
-                0, 0, width, height, false
-            )
-            val binaryBmp = BinaryBitmap(HybridBinarizer(source))
+                val source = PlanarYUVLuminanceSource(
+                    yBytes, rowStride, height,
+                    0, 0, width, height, false
+                )
+                val binaryBmp = BinaryBitmap(HybridBinarizer(source))
 
-            try {
-                val result = qrReader.decode(binaryBmp)
-                val text = result.text
-                if (text != null) {
-                    if (text.startsWith("DISASTER_GRP:")) {
-                        val imported = shredder.importGroupFromQr(text)
-                        runOnUiThread {
-                            if (imported != null) {
-                                Toast.makeText(this, "✅ Joined Group via QR: ${imported.name}", Toast.LENGTH_LONG).show()
-                                finish()
+                try {
+                    val result = qrReader.decode(binaryBmp)
+                    val text = result.text
+                    if (text != null) {
+                        if (text.startsWith("DISASTER_GRP:")) {
+                            val imported = shredder.importGroupFromQr(text)
+                            runOnUiThread {
+                                if (imported != null) {
+                                    Toast.makeText(this, "✅ Joined Group via QR: ${imported.name}", Toast.LENGTH_LONG).show()
+                                    finish()
+                                }
                             }
-                        }
-                    } else if (text.startsWith("LT:")) {
-                        val now = System.currentTimeMillis()
-                        val droplet = decodeDropletFromString(text)
-                        if (droplet != null) {
-                            // Avoid ingesting identical frame within 200ms
-                            if (droplet.seed != lastDecodedSeed || now - lastDecodedTime > 200L) {
-                                lastDecodedSeed = droplet.seed
-                                lastDecodedTime = now
-                                runOnUiThread {
-                                    ingestDropletToSolver(droplet)
+                        } else if (text.startsWith("LT:")) {
+                            val now = System.currentTimeMillis()
+                            val droplet = decodeDropletFromString(text)
+                            if (droplet != null) {
+                                // Avoid ingesting identical frame within 200ms
+                                if (droplet.seed != lastDecodedSeed || now - lastDecodedTime > 200L) {
+                                    lastDecodedSeed = droplet.seed
+                                    lastDecodedTime = now
+                                    runOnUiThread {
+                                        ingestDropletToSolver(droplet)
+                                    }
                                 }
                             }
                         }
                     }
+                } catch (_: Exception) {
+                    // No QR detected in this frame, normal operation
+                } finally {
+                    qrReader.reset()
                 }
-            } catch (_: Exception) {
-                // No QR detected in this frame, normal operation
-            } finally {
-                qrReader.reset()
             }
+        } finally {
+            imageProxy.close()
         }
-        imageProxy.close()
     }
 
     private fun ingestDropletToSolver(droplet: FountainQrCodec.Droplet) {

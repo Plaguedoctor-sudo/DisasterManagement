@@ -44,7 +44,8 @@ data class FeedMessage(
     val replyToId: String? = null,
     val replyToSender: String? = null,
     val replyToText: String? = null,
-    val targetPeer: String? = null
+    val targetPeer: String? = null,
+    val fileId: String? = null
 )
 
 data class CivilianContact(

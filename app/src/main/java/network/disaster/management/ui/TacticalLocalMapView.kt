@@ -10,15 +10,17 @@ import network.disaster.management.simulation.SurvivorSimulationEngine
 import kotlin.math.*
 
 /**
- * TacticalLocalMapView: High-Contrast Offline Tactical Map Canvas.
+ * TacticalLocalMapView: High-Contrast Offline Tactical Disaster GIS Map Canvas.
  *
- * Renders an off-grid tactical 2D map for trapped survivors:
- * - Concentric distance range rings (100m, 250m, 500m, 1000m).
- * - Trapped Survivor position with dynamic RF footprint circle (Stealth 0m vs Active 65m).
- * - Hostile SIGINT Drones & Ground Patrols with detection threat cones (RED).
- * - Environmental hazards: Active fire, chemical plumes, structural collapses (ORANGE/YELLOW).
- * - Crucial survival points: Potable water, trauma kits, extraction safehouses (GREEN/CYAN).
- * - Full offline operation without reliance on online tile services or satellite backhauls.
+ * Renders real disaster incidents and telemetry received over the mesh:
+ * - Concentric distance range rings (100m, 250m, 500m, 750m, 1000m).
+ * - Real user GPS location at center with pulsing position indicator.
+ * - Real distress beacons (🔴 SOS / TRAPPED / AID).
+ * - Real environmental hazards (⚠️ Road Blocked, Live Wire, Fire, Flood, Collapse, Gas).
+ * - Real resource requests & supply caches (🟡 Water, Medical, Food, Shelter, Power).
+ * - Real civilian check-ins (🟢 SAFE).
+ * - Interactive touch-to-inspect marker selection.
+ * - Offline vector HUD operation without reliance on online tile services or satellite internet.
  */
 class TacticalLocalMapView @JvmOverloads constructor(
     context: Context,
@@ -26,6 +28,38 @@ class TacticalLocalMapView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
+    // User's current geographical location (defaults to initial point, updated via GPS)
+    var userLocation: TacticalPoint = TacticalPoint(20.39712, 76.33967)
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    // Real incidents parsed from mesh messages
+    var incidents: List<MapIncident> = emptyList()
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    // Active category filter (null = show all)
+    var activeFilter: DisasterIncidentType? = null
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    // Currently selected / inspected incident
+    var selectedIncident: MapIncident? = null
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    // Callback when user taps an incident on the map
+    var onIncidentSelected: ((MapIncident) -> Unit)? = null
+
+    // For backwards compatibility with unit tests
     var simulationEngine: SurvivorSimulationEngine? = null
         set(value) {
             field = value
@@ -33,7 +67,10 @@ class TacticalLocalMapView @JvmOverloads constructor(
         }
 
     // Map Display Scale: meters per pixel
-    private var scaleMetersPerPixel = 1.6f // 1 pixel = ~1.6 meters (shows ~500m radius on a 1080p display)
+    private var scaleMetersPerPixel = 1.6f
+
+    // Screen offsets for rendered incidents to enable touch selection: incident -> (x, y)
+    private val renderedMarkerCoords = mutableListOf<Triple<MapIncident, Float, Float>>()
 
     // Graphic Paints
     private val backgroundPaint = Paint().apply {
@@ -56,90 +93,71 @@ class TacticalLocalMapView @JvmOverloads constructor(
 
     private val ringLabelPaint = Paint().apply {
         color = Color.parseColor("#4A7A96")
-        textSize = 26f
+        textSize = 24f
         typeface = Typeface.MONOSPACE
         isAntiAlias = true
     }
 
-    private val survivorPaint = Paint().apply {
-        color = Color.parseColor("#00FF66")
+    // User Location Paints
+    private val userCenterPaint = Paint().apply {
+        color = Color.parseColor("#38BDF8") // Sky-400
         style = Paint.Style.FILL
         isAntiAlias = true
     }
 
-    private val survivorPulsePaint = Paint().apply {
-        color = Color.parseColor("#3300FF66")
+    private val userPulsePaint = Paint().apply {
+        color = Color.parseColor("#3338BDF8")
         style = Paint.Style.FILL
         isAntiAlias = true
     }
 
-    private val rfFootprintPaint = Paint().apply {
-        color = Color.parseColor("#FFCC00")
+    private val userStrokePaint = Paint().apply {
+        color = Color.parseColor("#0284C7")
         style = Paint.Style.STROKE
         strokeWidth = 3f
-        pathEffect = DashPathEffect(floatArrayOf(8f, 6f), 0f)
         isAntiAlias = true
     }
 
-    private val hostilePaint = Paint().apply {
-        color = Color.parseColor("#FF3333")
+    // Incident Paints
+    private val sosFillPaint = Paint().apply {
+        color = Color.parseColor("#EF4444") // Red
         style = Paint.Style.FILL
         isAntiAlias = true
     }
 
-    private val hostileDetectionPaint = Paint().apply {
-        color = Color.parseColor("#26FF3333")
+    private val sosPulsePaint = Paint().apply {
+        color = Color.parseColor("#40EF4444")
         style = Paint.Style.FILL
         isAntiAlias = true
     }
 
-    private val hostileBorderPaint = Paint().apply {
-        color = Color.parseColor("#80FF3333")
+    private val hazardFillPaint = Paint().apply {
+        color = Color.parseColor("#F97316") // Orange
+        style = Paint.Style.FILL
+        isAntiAlias = true
+    }
+
+    private val supplyFillPaint = Paint().apply {
+        color = Color.parseColor("#EAB308") // Yellow
+        style = Paint.Style.FILL
+        isAntiAlias = true
+    }
+
+    private val safeFillPaint = Paint().apply {
+        color = Color.parseColor("#22C55E") // Green
+        style = Paint.Style.FILL
+        isAntiAlias = true
+    }
+
+    private val selectedHaloPaint = Paint().apply {
+        color = Color.parseColor("#FFFFFFFF")
         style = Paint.Style.STROKE
-        strokeWidth = 2f
+        strokeWidth = 4f
         isAntiAlias = true
     }
 
-    private val hazardPaint = Paint().apply {
-        color = Color.parseColor("#33FF8800")
-        style = Paint.Style.FILL
-        isAntiAlias = true
-    }
-
-    private val hazardBorderPaint = Paint().apply {
-        color = Color.parseColor("#FFAA00")
-        style = Paint.Style.STROKE
-        strokeWidth = 2f
-        isAntiAlias = true
-    }
-
-    private val supplyPaint = Paint().apply {
-        color = Color.parseColor("#00E5FF")
-        style = Paint.Style.FILL
-        isAntiAlias = true
-    }
-
-    private val highlightPaint = Paint().apply {
-        color = Color.parseColor("#FFD700")
-        style = Paint.Style.STROKE
-        strokeWidth = 3.5f
-        isAntiAlias = true
-    }
-
-    private val highlightHaloPaint = Paint().apply {
-        color = Color.parseColor("#33FFD700")
-        style = Paint.Style.FILL
-        isAntiAlias = true
-    }
-
-    private val trapPaint = Paint().apply {
-        color = Color.parseColor("#FF1100")
-        style = Paint.Style.FILL
-        isAntiAlias = true
-    }
-
-    private val trapZonePaint = Paint().apply {
-        color = Color.parseColor("#33FF1100")
+    private val selectedFillHaloPaint = Paint().apply {
+        color = Color.parseColor("#33FFFFFF")
         style = Paint.Style.FILL
         isAntiAlias = true
     }
@@ -152,28 +170,58 @@ class TacticalLocalMapView @JvmOverloads constructor(
     }
 
     private val subLabelPaint = Paint().apply {
-        color = Color.parseColor("#99AABB")
+        color = Color.parseColor("#94A3B8")
         textSize = 20f
         typeface = Typeface.MONOSPACE
         isAntiAlias = true
     }
 
-    private val threatLinePaint = Paint().apply {
-        color = Color.parseColor("#FF2222")
-        style = Paint.Style.STROKE
-        strokeWidth = 3f
-        pathEffect = DashPathEffect(floatArrayOf(10f, 6f), 0f)
-        isAntiAlias = true
-    }
-
     fun zoomIn() {
-        scaleMetersPerPixel = (scaleMetersPerPixel * 0.75f).coerceAtLeast(0.5f)
+        scaleMetersPerPixel = (scaleMetersPerPixel * 0.75f).coerceAtLeast(0.4f)
         invalidate()
     }
 
     fun zoomOut() {
-        scaleMetersPerPixel = (scaleMetersPerPixel * 1.33f).coerceAtMost(4.5f)
+        scaleMetersPerPixel = (scaleMetersPerPixel * 1.33f).coerceAtMost(5.0f)
         invalidate()
+    }
+
+    fun centerOn(point: TacticalPoint) {
+        userLocation = point
+        invalidate()
+    }
+
+    fun clearSelection() {
+        selectedIncident = null
+        invalidate()
+    }
+
+    fun setFilter(filter: DisasterIncidentType?) {
+        activeFilter = filter
+        invalidate()
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_UP) {
+            val touchX = event.x
+            val touchY = event.y
+            val hitRadiusPx = 50f // 50px hit box
+
+            // Check if user tapped near any rendered incident
+            val hit = renderedMarkerCoords.firstOrNull { (_, mx, my) ->
+                val dx = touchX - mx
+                val dy = touchY - my
+                (dx * dx + dy * dy) <= (hitRadiusPx * hitRadiusPx)
+            }
+
+            if (hit != null) {
+                selectedIncident = hit.first
+                invalidate()
+                onIncidentSelected?.invoke(hit.first)
+                return true
+            }
+        }
+        return true
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -184,6 +232,8 @@ class TacticalLocalMapView @JvmOverloads constructor(
         val centerX = w / 2f
         val centerY = h / 2f
 
+        renderedMarkerCoords.clear()
+
         // 1. Tactical Grid & Background
         canvas.drawRect(0f, 0f, w, h, backgroundPaint)
 
@@ -191,12 +241,14 @@ class TacticalLocalMapView @JvmOverloads constructor(
         canvas.drawLine(0f, centerY, w, centerY, gridPaint)
         canvas.drawLine(centerX, 0f, centerX, h, gridPaint)
 
-        // 2. Concentric Range Rings (100m, 250m, 500m, 750m)
-        val rings = listOf(100f, 250f, 500f, 750f)
+        // 2. Concentric Range Rings (100m, 250m, 500m, 750m, 1000m)
+        val rings = listOf(100f, 250f, 500f, 750f, 1000f)
         for (distMeters in rings) {
             val rPx = distMeters / scaleMetersPerPixel
-            canvas.drawCircle(centerX, centerY, rPx, rangeRingPaint)
-            canvas.drawText("${distMeters.roundToInt()}m", centerX + 8f, centerY - rPx + 24f, ringLabelPaint)
+            if (rPx < max(w, h)) {
+                canvas.drawCircle(centerX, centerY, rPx, rangeRingPaint)
+                canvas.drawText("${distMeters.roundToInt()}m", centerX + 8f, centerY - rPx + 24f, ringLabelPaint)
+            }
         }
 
         // Draw Compass Cardinals
@@ -205,116 +257,110 @@ class TacticalLocalMapView @JvmOverloads constructor(
         canvas.drawText("W", 16f, centerY + 8f, ringLabelPaint)
         canvas.drawText("E", w - 36f, centerY + 8f, ringLabelPaint)
 
-        val engine = simulationEngine ?: return
-        val survivor = engine.survivor
+        // Active Reference Center Point: prefer userLocation, or simulationEngine survivor if set
+        val refLocation = simulationEngine?.survivor?.location ?: userLocation
 
-        // Utility to convert TacticalPoint to canvas pixel offsets relative to survivor center
+        // Utility to convert TacticalPoint to canvas pixel offsets relative to reference center
         fun toPixelOffset(pt: TacticalPoint): Pair<Float, Float> {
-            val latDiff = pt.lat - survivor.location.lat
-            val lonDiff = pt.lon - survivor.location.lon
-            // ~111,320 meters per latitude degree; longitude adjusted for cosine
+            val latDiff = pt.lat - refLocation.lat
+            val lonDiff = pt.lon - refLocation.lon
             val metersY = -(latDiff * 111320.0).toFloat()
-            val metersX = (lonDiff * 111320.0 * cos(Math.toRadians(survivor.location.lat))).toFloat()
+            val metersX = (lonDiff * 111320.0 * cos(Math.toRadians(refLocation.lat))).toFloat()
             val pxX = centerX + (metersX / scaleMetersPerPixel)
             val pxY = centerY + (metersY / scaleMetersPerPixel)
             return Pair(pxX, pxY)
         }
 
-        // 3. Render Environmental Hazards
+        // 3. Render Real Mesh Disaster Incidents
+        val filter = activeFilter
+        val displayIncidents = if (filter == null) incidents else incidents.filter { it.type == filter }
+
+        for (inc in displayIncidents) {
+            val (ix, iy) = toPixelOffset(inc.location)
+
+            // Skip drawing if outside visible bounds
+            if (ix < -100f || ix > w + 100f || iy < -100f || iy > h + 100f) continue
+
+            renderedMarkerCoords.add(Triple(inc, ix, iy))
+
+            val isSelected = selectedIncident?.id == inc.id
+            if (isSelected) {
+                canvas.drawCircle(ix, iy, 34f, selectedFillHaloPaint)
+                canvas.drawCircle(ix, iy, 28f, selectedHaloPaint)
+            }
+
+            val dist = refLocation.distanceTo(inc.location).roundToInt()
+
+            when (inc.type) {
+                DisasterIncidentType.DISTRESS_SOS -> {
+                    // Pulsing Red Beacon
+                    canvas.drawCircle(ix, iy, 28f, sosPulsePaint)
+                    canvas.drawCircle(ix, iy, 14f, sosFillPaint)
+                    canvas.drawText("🔴 SOS: ${inc.senderName}", ix + 20f, iy - 6f, labelPaint)
+                    canvas.drawText("${dist}m away • ${inc.title.take(30)}", ix + 20f, iy + 18f, subLabelPaint)
+                }
+                DisasterIncidentType.HAZARD_ALERT -> {
+                    // Orange Warning Marker (Triangle)
+                    val path = Path().apply {
+                        moveTo(ix, iy - 16f)
+                        lineTo(ix + 16f, iy + 12f)
+                        lineTo(ix - 16f, iy + 12f)
+                        close()
+                    }
+                    canvas.drawPath(path, hazardFillPaint)
+                    canvas.drawText("⚠️ HAZARD: ${inc.title.take(28)}", ix + 22f, iy - 6f, labelPaint)
+                    canvas.drawText("${dist}m away • @${inc.senderName}", ix + 22f, iy + 18f, subLabelPaint)
+                }
+                DisasterIncidentType.SUPPLY_REQUEST -> {
+                    // Yellow Resource Request Marker
+                    canvas.drawCircle(ix, iy, 13f, supplyFillPaint)
+                    canvas.drawText("🟡 NEED: ${inc.title.take(28)}", ix + 20f, iy - 6f, labelPaint)
+                    canvas.drawText("${dist}m away • @${inc.senderName}", ix + 20f, iy + 18f, subLabelPaint)
+                }
+                DisasterIncidentType.CIVILIAN_SAFE -> {
+                    // Green Safe Check-in Marker
+                    canvas.drawCircle(ix, iy, 12f, safeFillPaint)
+                    canvas.drawText("🟢 SAFE: @${inc.senderName}", ix + 18f, iy - 6f, labelPaint)
+                    canvas.drawText("${dist}m away • Check-in verified", ix + 18f, iy + 18f, subLabelPaint)
+                }
+            }
+        }
+
+        // 4. Render Center User Marker (Pulsing Cyan/Blue core)
+        canvas.drawCircle(centerX, centerY, 24f, userPulsePaint)
+        canvas.drawCircle(centerX, centerY, 14f, userStrokePaint)
+        canvas.drawCircle(centerX, centerY, 8f, userCenterPaint)
+        canvas.drawText("YOU (CURRENT POSITION)", centerX - 90f, centerY - 28f, labelPaint)
+        val coordSummary = String.format(java.util.Locale.US, "%.5f, %.5f", refLocation.lat, refLocation.lon)
+        canvas.drawText(coordSummary, centerX - 65f, centerY + 36f, ringLabelPaint)
+
+        // 5. Fallback: If no real incidents and simulation engine is provided (for unit test compatibility)
+        val engine = simulationEngine
+        if (displayIncidents.isEmpty() && engine != null) {
+            renderSimulationObjects(canvas, engine, centerX, centerY, ::toPixelOffset)
+        }
+    }
+
+    private fun renderSimulationObjects(
+        canvas: Canvas,
+        engine: SurvivorSimulationEngine,
+        centerX: Float,
+        centerY: Float,
+        toPixelOffset: (TacticalPoint) -> Pair<Float, Float>
+    ) {
+        val survivor = engine.survivor
         for (hz in engine.hazards) {
             val (hx, hy) = toPixelOffset(hz.location)
             val radPx = (hz.radiusMeters / scaleMetersPerPixel).toFloat()
-            canvas.drawCircle(hx, hy, radPx, hazardPaint)
-            canvas.drawCircle(hx, hy, radPx, hazardBorderPaint)
+            canvas.drawCircle(hx, hy, radPx, hazardFillPaint)
             canvas.drawText("⚠️ ${hz.name}", hx - 50f, hy - radPx - 8f, labelPaint)
         }
-
-        // 4. Render Supply Caches & Safehouse
         for (sc in engine.supplyCaches) {
             val (sx, sy) = toPixelOffset(sc.location)
-            if (sc.isCollected) {
-                // Dim collected supplies
-                continue
-            }
-
-            // Highlight ring & halo if resource is prioritized by user
-            if (sc.isHighlighted) {
-                canvas.drawCircle(sx, sy, 32f, highlightHaloPaint)
-                canvas.drawCircle(sx, sy, 22f, highlightPaint)
-            }
-
-            val symbol = when (sc.type) {
-                SupplyType.POTABLE_WATER -> "💧 WATER"
-                SupplyType.TRAUMA_KIT -> "🩹 MED-KIT"
-                SupplyType.FOOD_RATIONS -> "🥫 FOOD"
-                SupplyType.SHELTER_EXTRACTION,
-                SupplyType.EXTRACTION_BUNKER -> "🚩 EXTRACTION SAFE-HOUSE"
-            }
-            canvas.drawCircle(sx, sy, 14f, supplyPaint)
-            
-            val prefix = if (sc.isHighlighted) "⭐ [PRIORITY] " else ""
-            canvas.drawText("$prefix$symbol", sx + 20f, sy + 6f, labelPaint)
-            val dist = survivor.location.distanceTo(sc.location).roundToInt()
-            val note = if (sc.customNotes.isNotBlank()) " • ${sc.customNotes}" else ""
-            canvas.drawText("${dist}m$note", sx + 20f, sy + 28f, subLabelPaint)
+            if (sc.isCollected) continue
+            canvas.drawCircle(sx, sy, 14f, supplyFillPaint)
+            canvas.drawText(sc.name, sx + 20f, sy + 6f, labelPaint)
         }
-
-        // 4b. Render Detected Ambush Traps (Counter-Intel Hostile Actor Detection)
-        val traps = network.disaster.management.security.HostileActorDetector.shared.getDetectedAmbushTraps()
-        for (trap in traps) {
-            val (tx, ty) = toPixelOffset(trap.trapLocation)
-            canvas.drawCircle(tx, ty, 50f, trapZonePaint)
-            canvas.drawCircle(tx, ty, 18f, trapPaint)
-            canvas.drawText("💀 AMBUSH TRAP! (${trap.hostileSender})", tx + 24f, ty - 4f, labelPaint)
-            canvas.drawText("DANGER: In hostile killzone (${trap.distToHostilePatrolMeters.roundToInt()}m)", tx + 24f, ty + 18f, subLabelPaint)
-        }
-
-        // 5. Render Hostile Threats & Direction-Finding Cones
-        for (ht in engine.hostiles) {
-            val (hx, hy) = toPixelOffset(ht.location)
-            val detPx = (ht.detectionRadiusMeters / scaleMetersPerPixel).toFloat()
-
-            // Hostile sensor detection zone
-            canvas.drawCircle(hx, hy, detPx, hostileDetectionPaint)
-            canvas.drawCircle(hx, hy, detPx, hostileBorderPaint)
-
-            // Hostile marker (Diamond)
-            val path = Path().apply {
-                moveTo(hx, hy - 18f)
-                lineTo(hx + 18f, hy)
-                lineTo(hx, hy + 18f)
-                lineTo(hx - 18f, hy)
-                close()
-            }
-            canvas.drawPath(path, hostilePaint)
-
-            val dist = survivor.location.distanceTo(ht.location).roundToInt()
-            canvas.drawText("⛔ ${ht.name}", hx + 24f, hy - 6f, labelPaint)
-            canvas.drawText("RANGE: ${dist}m • DF SENSOR: ${ht.detectionRadiusMeters.roundToInt()}m", hx + 24f, hy + 18f, subLabelPaint)
-
-            // If continuous RF broadcast intersects hostile sensors, draw targeted lock vector!
-            val isIntersecting = !survivor.isRadioSilence && (dist <= ht.detectionRadiusMeters + survivor.getRfEmissionRadiusMeters())
-            if (isIntersecting) {
-                canvas.drawLine(hx, hy, centerX, centerY, threatLinePaint)
-                canvas.drawText("⚡ SIGINT LOCK VECTOR", (hx + centerX) / 2f, (hy + centerY) / 2f - 10f, labelPaint)
-            }
-        }
-
-        // 6. Render Trapped Survivor Center Marker
-        val rfRadiusMeters = survivor.getRfEmissionRadiusMeters()
-        if (rfRadiusMeters > 0) {
-            val rfPx = (rfRadiusMeters / scaleMetersPerPixel).toFloat()
-            canvas.drawCircle(centerX, centerY, rfPx, rfFootprintPaint)
-            canvas.drawText("RF EMISSION BOUNDARY (${rfRadiusMeters.roundToInt()}m)", centerX - 120f, centerY + rfPx + 24f, subLabelPaint)
-        } else {
-            // Dotted circle showing zero emission (stealth)
-            canvas.drawText("🔇 RF RADIO SILENCE (0m FOOTPRINT)", centerX - 140f, centerY + 45f, subLabelPaint)
-        }
-
-        // Pulsing survivor core
-        canvas.drawCircle(centerX, centerY, 22f, survivorPulsePaint)
-        canvas.drawCircle(centerX, centerY, 12f, survivorPaint)
-        canvas.drawText("SURVIVOR (YOU)", centerX - 60f, centerY - 28f, labelPaint)
     }
 
     fun toggleHighlightSupply(id: String): Boolean {

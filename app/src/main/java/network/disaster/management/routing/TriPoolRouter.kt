@@ -169,7 +169,8 @@ class TriPoolRouter(
                             replyToId = if (json.has("replyToId") && !json.isNull("replyToId")) json.getString("replyToId") else null,
                             replyToSender = if (json.has("replyToSender") && !json.isNull("replyToSender")) json.getString("replyToSender") else null,
                             replyToText = if (json.has("replyToText") && !json.isNull("replyToText")) json.getString("replyToText") else null,
-                            targetPeer = if (json.has("targetPeer") && !json.isNull("targetPeer")) json.getString("targetPeer") else null
+                            targetPeer = if (json.has("targetPeer") && !json.isNull("targetPeer")) json.getString("targetPeer") else null,
+                            fileId = if (json.has("fileId") && !json.isNull("fileId")) json.getString("fileId") else null
                         )
                         db.insertMessage(msg)
 

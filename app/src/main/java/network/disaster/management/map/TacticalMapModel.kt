@@ -38,6 +38,29 @@ data class TacticalPoint(
 }
 
 /**
+ * Tactical Disaster Management Incident Categories.
+ */
+enum class DisasterIncidentType {
+    DISTRESS_SOS,    // 🔴 Distress beacon / trapped civilian / medical aid
+    HAZARD_ALERT,    // ⚠️ Hazard: road blocked, live wire, fire, flood, collapse, gas leak
+    SUPPLY_REQUEST,  // 🟡 Resource need: water, medical supplies, food, shelter, power
+    CIVILIAN_SAFE    // 🟢 Civilian check-in / safe zone coordinates
+}
+
+/**
+ * Real-time Disaster Map Incident record parsed from off-grid mesh telemetry.
+ */
+data class MapIncident(
+    val id: String,
+    val type: DisasterIncidentType,
+    val title: String,
+    val senderName: String,
+    val location: TacticalPoint,
+    val timestamp: Long,
+    val details: String = ""
+)
+
+/**
  * User Inventory Subsystem.
  * Tracks water, rations, medical trauma kits, power, and purification tablets.
  */

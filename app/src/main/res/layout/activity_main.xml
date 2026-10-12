@@ -184,13 +184,146 @@
             android:orientation="vertical"
             android:visibility="visible">
 
-            <!-- High-Stress Rapid Triage Bar -->
+            <!-- HIGH-STRESS EMERGENCY ACTION CONSOLE -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                app:cardBackgroundColor="#131B26"
+                app:cardCornerRadius="10dp"
+                app:strokeColor="#1E293B"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="8dp">
+
+                    <!-- PRIMARY LIFE-SAFETY DISTRESS BUTTON -->
+                    <Button
+                        android:id="@+id/btnEmergencySosBig"
+                        android:layout_width="match_parent"
+                        android:layout_height="46dp"
+                        android:backgroundTint="#B91C1C"
+                        android:text="🚨 EMERGENCY DISTRESS SOS"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="8dp" />
+
+                    <!-- ACOUSTIC & OPTICAL RESCUE BEACONS -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="6dp">
+
+                        <Button
+                            android:id="@+id/btnRescueSiren"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:backgroundTint="#1E293B"
+                            android:text="🔊 SIREN: OFF"
+                            android:textColor="#F87171"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="6dp" />
+
+                        <Button
+                            android:id="@+id/btnRescueStrobe"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:backgroundTint="#1E293B"
+                            android:text="🔦 SOS FLASH: OFF"
+                            android:textColor="#FBBF24"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="6dp" />
+                    </LinearLayout>
+
+                    <!-- 2x2 RAPID CIVILIAN TRIAGE GRID -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="6dp">
+
+                        <Button
+                            android:id="@+id/btnQuickSafe"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:backgroundTint="#15803D"
+                            android:text="🟢 I AM SAFE"
+                            android:textColor="#FFFFFF"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="6dp" />
+
+                        <Button
+                            android:id="@+id/btnQuickTrapped"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:backgroundTint="#991B1B"
+                            android:text="🔴 TRAPPED / AID"
+                            android:textColor="#FFFFFF"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="6dp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="6dp">
+
+                        <Button
+                            android:id="@+id/btnQuickSupplies"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:backgroundTint="#C2410C"
+                            android:text="🟡 NEED SUPPLIES"
+                            android:textColor="#FFFFFF"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="6dp" />
+
+                        <Button
+                            android:id="@+id/btnQuickHazard"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:backgroundTint="#581C87"
+                            android:text="⚠️ REPORT DANGER"
+                            android:textColor="#FFFFFF"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="6dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Compact Secondary Triage Bar -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#121212"
+                android:background="#0F172A"
                 android:paddingHorizontal="10dp"
-                android:paddingVertical="8dp"
+                android:paddingVertical="4dp"
                 android:scrollbars="none">
 
                 <LinearLayout
@@ -200,88 +333,39 @@
                     android:gravity="center_vertical">
 
                     <Button
-                        android:id="@+id/btnQuickSafe"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:backgroundTint="#1B5E20"
-                        android:text="🟢 I AM SAFE"
-                        android:textColor="#FFFFFF"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:layout_marginEnd="6dp"
-                        app:cornerRadius="6dp" />
-
-                    <Button
-                        android:id="@+id/btnQuickTrapped"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:backgroundTint="#B71C1C"
-                        android:text="🔴 TRAPPED / AID"
-                        android:textColor="#FFFFFF"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:layout_marginEnd="6dp"
-                        app:cornerRadius="6dp" />
-
-                    <Button
-                        android:id="@+id/btnQuickSupplies"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:backgroundTint="#E65100"
-                        android:text="🟡 NEED SUPPLIES"
-                        android:textColor="#FFFFFF"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:layout_marginEnd="6dp"
-                        app:cornerRadius="6dp" />
-
-                    <Button
-                        android:id="@+id/btnQuickHazard"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:backgroundTint="#4A148C"
-                        android:text="⚠️ HAZARD REPORT"
-                        android:textColor="#FFFFFF"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:layout_marginEnd="6dp"
-                        app:cornerRadius="6dp" />
-
-                    <Button
                         android:id="@+id/btnChangeCallsign"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="32dp"
                         android:backgroundTint="#0284C7"
-                        android:text="👤 MY NAME: ..."
+                        android:text="👤 Callsign: ..."
                         android:textColor="#FFFFFF"
-                        android:textSize="11sp"
+                        android:textSize="10sp"
                         android:textStyle="bold"
                         android:layout_marginEnd="6dp"
-                        app:cornerRadius="6dp" />
+                        app:cornerRadius="4dp" />
 
                     <Button
                         android:id="@+id/btnManageFriends"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="32dp"
                         android:backgroundTint="#0F766E"
-                        android:text="👥 FRIENDS &amp; TRUST"
+                        android:text="👥 Roll Call &amp; Contacts"
                         android:textColor="#FFFFFF"
-                        android:textSize="11sp"
+                        android:textSize="10sp"
                         android:textStyle="bold"
-                        android:layout_marginStart="6dp"
-                        app:cornerRadius="6dp" />
+                        android:layout_marginEnd="6dp"
+                        app:cornerRadius="4dp" />
 
                     <Button
                         android:id="@+id/btnPropagateApp"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:backgroundTint="#2563EB"
-                        android:text="📲 SHARE APP / OFFLINE INSTALL"
+                        android:layout_height="32dp"
+                        android:backgroundTint="#4338CA"
+                        android:text="📲 Share / Sideload App"
                         android:textColor="#FFFFFF"
-                        android:textSize="11sp"
+                        android:textSize="10sp"
                         android:textStyle="bold"
-                        android:layout_marginStart="6dp"
-                        app:cornerRadius="6dp" />
+                        app:cornerRadius="4dp" />
                 </LinearLayout>
             </HorizontalScrollView>
 
@@ -442,7 +526,7 @@
             </FrameLayout>
         </LinearLayout>
 
-        <!-- TAB 2: SIMPLIFIED LOCAL AREA MAP & TRAPPED SURVIVOR SIMULATION -->
+        <!-- TAB 2: TACTICAL DISASTER GIS MAP -->
         <LinearLayout
             android:id="@+id/layoutTabMap"
             android:layout_width="match_parent"
@@ -450,7 +534,7 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Tactical Threat & Vitals Dashboard -->
+            <!-- Tactical GPS & Operations Header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -466,48 +550,28 @@
                     android:gravity="center_vertical">
 
                     <TextView
-                        android:id="@+id/tvSimThreatBanner"
+                        android:id="@+id/tvMapGpsStatus"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="STEALTH OPTIMAL • RF Radio Silence (0m Footprint)"
-                        android:textColor="#00FF66"
+                        android:text="📍 GPS: Acquiring mesh coordinates..."
+                        android:textColor="#38BDF8"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
                     <Button
-                        android:id="@+id/btnSimToggleStealth"
+                        android:id="@+id/btnCenterMyLocation"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
-                        android:backgroundTint="#2D3748"
-                        android:text="🔇 RADIO SILENCE"
+                        android:backgroundTint="#0284C7"
+                        android:text="🎯 MY LOCATION"
                         android:textColor="#FFFFFF"
                         android:textSize="11sp"
                         android:textStyle="bold"
                         app:cornerRadius="6dp" />
                 </LinearLayout>
 
-                <TextView
-                    android:id="@+id/tvSimVitals"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="❤️ HP: 100% | 💧 Water: 85% | 🥫 Food: 90% | 🔋 Bat: 75%"
-                    android:textColor="#E2E8F0"
-                    android:textSize="12sp"
-                    android:typeface="monospace"
-                    android:layout_marginTop="4dp" />
-
-                <TextView
-                    android:id="@+id/tvSimInventorySummary"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="🎒 INV: 💧 3.0L | 🥫 4 Rations | 🩹 2 MedKits | 🧪 10 Tabs | 🔋 4500mAh"
-                    android:textColor="#38BDF8"
-                    android:textSize="11sp"
-                    android:typeface="monospace"
-                    android:layout_marginTop="2dp" />
-
-                <!-- Action Controls: Micro-burst SOS, Step Sim, Scavenge, Inventory, Highlight, Intel -->
+                <!-- Incident Category Quick-Filter Bar -->
                 <HorizontalScrollView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -520,96 +584,60 @@
                         android:orientation="horizontal">
 
                         <Button
-                            android:id="@+id/btnSimMicroBurst"
+                            android:id="@+id/btnFilterAll"
                             android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:backgroundTint="#B71C1C"
-                            android:text="📡 100ms SOS"
+                            android:layout_height="30dp"
+                            android:backgroundTint="#334155"
+                            android:text="🌐 ALL (0)"
                             android:textColor="#FFFFFF"
                             android:textSize="10sp"
                             android:textStyle="bold"
-                            android:layout_marginEnd="6dp"
+                            android:layout_marginEnd="5dp"
                             app:cornerRadius="4dp" />
 
                         <Button
-                            android:id="@+id/btnSimInventory"
+                            android:id="@+id/btnFilterSos"
                             android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:backgroundTint="#0284C7"
-                            android:text="🎒 INVENTORY"
-                            android:textColor="#FFFFFF"
+                            android:layout_height="30dp"
+                            android:backgroundTint="#7F1D1D"
+                            android:text="🔴 DISTRESS (0)"
+                            android:textColor="#FCA5A5"
                             android:textSize="10sp"
                             android:textStyle="bold"
-                            android:layout_marginEnd="6dp"
+                            android:layout_marginEnd="5dp"
                             app:cornerRadius="4dp" />
 
                         <Button
-                            android:id="@+id/btnSimHighlight"
+                            android:id="@+id/btnFilterHazards"
                             android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:backgroundTint="#CA8A04"
-                            android:text="⭐ HIGHLIGHT"
-                            android:textColor="#FFFFFF"
+                            android:layout_height="30dp"
+                            android:backgroundTint="#7C2D12"
+                            android:text="⚠️ HAZARDS (0)"
+                            android:textColor="#FDBA74"
                             android:textSize="10sp"
                             android:textStyle="bold"
-                            android:layout_marginEnd="6dp"
+                            android:layout_marginEnd="5dp"
                             app:cornerRadius="4dp" />
 
                         <Button
-                            android:id="@+id/btnSimHostileIntel"
+                            android:id="@+id/btnFilterSupplies"
                             android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:backgroundTint="#DC2626"
-                            android:text="🛡️ HOSTILE INTEL"
-                            android:textColor="#FFFFFF"
+                            android:layout_height="30dp"
+                            android:backgroundTint="#713F12"
+                            android:text="🟡 SUPPLIES (0)"
+                            android:textColor="#FDE047"
                             android:textSize="10sp"
                             android:textStyle="bold"
-                            android:layout_marginEnd="6dp"
+                            android:layout_marginEnd="5dp"
                             app:cornerRadius="4dp" />
 
                         <Button
-                            android:id="@+id/btnSimStep"
+                            android:id="@+id/btnFilterSafe"
                             android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:backgroundTint="#1E3A8A"
-                            android:text="⏱️ STEP"
-                            android:textColor="#FFFFFF"
-                            android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:layout_marginEnd="6dp"
-                            app:cornerRadius="4dp" />
-
-                        <Button
-                            android:id="@+id/btnSimScavengeWater"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:backgroundTint="#0369A1"
-                            android:text="💧 WATER"
-                            android:textColor="#FFFFFF"
-                            android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:layout_marginEnd="6dp"
-                            app:cornerRadius="4dp" />
-
-                        <Button
-                            android:id="@+id/btnSimScavengeMed"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:backgroundTint="#047857"
-                            android:text="🩹 MED-KIT"
-                            android:textColor="#FFFFFF"
-                            android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:layout_marginEnd="6dp"
-                            app:cornerRadius="4dp" />
-
-                        <Button
-                            android:id="@+id/btnSimExtraction"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:backgroundTint="#D97706"
-                            android:text="🚩 SAFEHOUSE"
-                            android:textColor="#FFFFFF"
+                            android:layout_height="30dp"
+                            android:backgroundTint="#14532D"
+                            android:text="🟢 SAFE (0)"
+                            android:textColor="#86EFAC"
                             android:textSize="10sp"
                             android:textStyle="bold"
                             app:cornerRadius="4dp" />
@@ -617,7 +645,7 @@
                 </HorizontalScrollView>
             </LinearLayout>
 
-            <!-- Map View Container with Zoom Controls -->
+            <!-- Map View Container with Zoom & Incident Inspector -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
@@ -660,11 +688,88 @@
                         android:textStyle="bold"
                         app:cornerRadius="22dp" />
                 </LinearLayout>
+
+                <!-- Floating Selected Incident Details Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardSelectedIncident"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentBottom="true"
+                    android:layout_marginHorizontal="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:layout_marginEnd="68dp"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="#1E293B"
+                    app:cardCornerRadius="10dp"
+                    app:strokeColor="#38BDF8"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:id="@+id/tvIncidentCardTitle"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="🔴 DISTRESS ALERT"
+                                android:textColor="#FFFFFF"
+                                android:textStyle="bold"
+                                android:textSize="13sp" />
+
+                            <ImageButton
+                                android:id="@+id/btnIncidentClose"
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                                app:tint="#94A3B8" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvIncidentCardSender"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@Medic-Alpha • 180m away"
+                            android:textColor="#93C5FD"
+                            android:textSize="11sp"
+                            android:layout_marginTop="2dp" />
+
+                        <TextView
+                            android:id="@+id/tvIncidentCardContent"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Trapped civilian in substation [LOC:20.3980,76.3418]"
+                            android:textColor="#E2E8F0"
+                            android:textSize="12sp"
+                            android:layout_marginTop="4dp" />
+
+                        <Button
+                            android:id="@+id/btnIncidentCopyGps"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:layout_marginTop="6dp"
+                            android:backgroundTint="#0369A1"
+                            android:text="📋 Copy Coordinates"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            app:cornerRadius="4dp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
             </RelativeLayout>
 
-            <!-- Live Incident Ticker / Guidance -->
+            <!-- Bottom Tactical Grid Incident Summary Ticker -->
             <TextView
-                android:id="@+id/tvSimIncidentLog"
+                android:id="@+id/tvMapIncidentSummary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="#0A0F18"
@@ -675,7 +780,7 @@
                 android:maxLines="2"
                 android:ellipsize="end"
                 android:typeface="monospace"
-                android:text="TACTICAL INTEL: Maintain radio silence while hostile drone sweeps sector. Approach water cistern via eastern rubble trench." />
+                android:text="TACTICAL GIS HUD: 0 Distress Alerts • 0 Hazards • 0 Supply Needs nearby." />
         </LinearLayout>
 
         <!-- TAB 3: CIVILIAN GROUPS -->
@@ -686,12 +791,68 @@
             android:orientation="vertical"
             android:visibility="gone">
 
+            <!-- Family & Team Roll Call Status Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                app:cardBackgroundColor="#0F172A"
+                app:cardCornerRadius="8dp"
+                app:strokeColor="#1E293B"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="🛡️ FAMILY &amp; TEAM ROLL CALL"
+                            android:textColor="#38BDF8"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <Button
+                            android:id="@+id/btnQuickRollCallPing"
+                            android:layout_width="wrap_content"
+                            android:layout_height="30dp"
+                            android:backgroundTint="#0369A1"
+                            android:text="📡 Request Check-In"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="4dp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvRollCallSummary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Checking contact safety status across off-grid mesh..."
+                        android:textColor="#94A3B8"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:paddingHorizontal="16dp"
-                android:paddingVertical="12dp"
+                android:paddingVertical="8dp"
                 android:gravity="center_vertical">
 
                 <TextView

@@ -51,7 +51,7 @@ class MediaChunkingEngine(
     }
 
     fun chunkBytes(fileBytes: ByteArray, fileName: String, mimeType: String): Pair<FileManifest, List<ChunkPackage>> {
-        val fileId = UUID.randomUUID().toString().replace("-", "").take(16)
+        val fileId = UUID.nameUUIDFromBytes(fileName.toByteArray(Charsets.UTF_8)).toString().replace("-", "").take(16)
         val totalChunks = ((fileBytes.size + MAX_CHUNK_PAYLOAD - 1) / MAX_CHUNK_PAYLOAD).coerceAtLeast(1)
         val manifest = FileManifest(
             fileId = fileId,

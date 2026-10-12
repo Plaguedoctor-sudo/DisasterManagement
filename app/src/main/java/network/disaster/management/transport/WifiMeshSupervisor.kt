@@ -289,6 +289,16 @@ class WifiMeshSupervisor(
     }
 
     private suspend fun handlePeerConnection(socket: Socket, remoteIp: String) = withContext(Dispatchers.IO) {
+        val cleanIp = remoteIp.replace("^/+".toRegex(), "").replace("::ffff:", "").trim()
+        if (!network.disaster.management.security.CitadelDefenseManager.isIngressPermitted(cleanIp)) {
+            try { socket.close() } catch (_: Exception) {}
+            return@withContext
+        }
+        if (network.disaster.management.security.NetworkQuarantineManager.isQuarantined(cleanIp)) {
+            try { socket.close() } catch (_: Exception) {}
+            return@withContext
+        }
+
         val existing = activeConnections.put(remoteIp, socket)
         if (existing != null && existing !== socket) {
             try { existing.close() } catch (_: Exception) {}

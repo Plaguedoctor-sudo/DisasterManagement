@@ -81,8 +81,15 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
             try { db.execSQL("ALTER TABLE messages ADD COLUMN reply_to_sender TEXT;") } catch (_: Exception) {}
             try { db.execSQL("ALTER TABLE messages ADD COLUMN reply_to_text TEXT;") } catch (_: Exception) {}
             try { db.execSQL("ALTER TABLE messages ADD COLUMN target_peer TEXT;") } catch (_: Exception) {}
+            try { db.execSQL("ALTER TABLE messages ADD COLUMN file_id TEXT;") } catch (_: Exception) {}
             try { db.execSQL("CREATE TABLE IF NOT EXISTS civilian_contacts (peer_id TEXT PRIMARY KEY, display_name TEXT, is_friend INTEGER, trust_score INTEGER, trust_badge TEXT, notes TEXT, added_epoch INTEGER, friend_status TEXT);") } catch (_: Exception) {}
             try { db.execSQL("ALTER TABLE civilian_contacts ADD COLUMN friend_status TEXT DEFAULT 'NONE';") } catch (_: Exception) {}
+
+            // Blueprint Step 10: SQLite WORM (Write-Once-Read-Many) Audit Triggers
+            try {
+                db.execSQL("CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_update BEFORE UPDATE ON audit_logs BEGIN SELECT RAISE(FAIL, 'SECURITY INTEGRITY VIOLATION: Audit logs are immutable and cannot be updated.'); END;")
+                db.execSQL("CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_delete BEFORE DELETE ON audit_logs BEGIN SELECT RAISE(FAIL, 'SECURITY INTEGRITY VIOLATION: Audit logs are WORM append-only and cannot be deleted.'); END;")
+            } catch (_: Exception) {}
         } catch (e: Exception) {
             android.util.Log.e("LowWearCryptoShredder", "Error configuring security pragmas", e)
         }
@@ -97,7 +104,7 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
         db.execSQL("CREATE TABLE IF NOT EXISTS groups (group_id TEXT PRIMARY KEY, name TEXT, description TEXT, secret_key BLOB, is_broadcast INTEGER, created_epoch INTEGER);")
 
         // Feed & Group Messages (with thread replies & targeted peers)
-        db.execSQL("CREATE TABLE IF NOT EXISTS messages (msg_id TEXT PRIMARY KEY, group_id TEXT, sender_name TEXT, content TEXT, msg_type TEXT, file_name TEXT, file_size INTEGER, mime_type TEXT, local_path TEXT, timestamp INTEGER, is_emergency INTEGER, reply_to_id TEXT, reply_to_sender TEXT, reply_to_text TEXT, target_peer TEXT);")
+        db.execSQL("CREATE TABLE IF NOT EXISTS messages (msg_id TEXT PRIMARY KEY, group_id TEXT, sender_name TEXT, content TEXT, msg_type TEXT, file_name TEXT, file_size INTEGER, mime_type TEXT, local_path TEXT, timestamp INTEGER, is_emergency INTEGER, reply_to_id TEXT, reply_to_sender TEXT, reply_to_text TEXT, target_peer TEXT, file_id TEXT);")
 
         // File Chunk Storage (Pool C)
         db.execSQL("CREATE TABLE IF NOT EXISTS file_chunks (file_id TEXT, chunk_index INTEGER, total_chunks INTEGER, chunk_data BLOB, PRIMARY KEY(file_id, chunk_index));")
@@ -113,7 +120,7 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("CREATE TABLE IF NOT EXISTS groups (group_id TEXT PRIMARY KEY, name TEXT, description TEXT, secret_key BLOB, is_broadcast INTEGER, created_epoch INTEGER);")
-        db.execSQL("CREATE TABLE IF NOT EXISTS messages (msg_id TEXT PRIMARY KEY, group_id TEXT, sender_name TEXT, content TEXT, msg_type TEXT, file_name TEXT, file_size INTEGER, mime_type TEXT, local_path TEXT, timestamp INTEGER, is_emergency INTEGER, reply_to_id TEXT, reply_to_sender TEXT, reply_to_text TEXT, target_peer TEXT);")
+        db.execSQL("CREATE TABLE IF NOT EXISTS messages (msg_id TEXT PRIMARY KEY, group_id TEXT, sender_name TEXT, content TEXT, msg_type TEXT, file_name TEXT, file_size INTEGER, mime_type TEXT, local_path TEXT, timestamp INTEGER, is_emergency INTEGER, reply_to_id TEXT, reply_to_sender TEXT, reply_to_text TEXT, target_peer TEXT, file_id TEXT);")
         db.execSQL("CREATE TABLE IF NOT EXISTS file_chunks (file_id TEXT, chunk_index INTEGER, total_chunks INTEGER, chunk_data BLOB, PRIMARY KEY(file_id, chunk_index));")
         db.execSQL("CREATE TABLE IF NOT EXISTS civilian_contacts (peer_id TEXT PRIMARY KEY, display_name TEXT, is_friend INTEGER, trust_score INTEGER, trust_badge TEXT, notes TEXT, added_epoch INTEGER, friend_status TEXT);")
         db.execSQL("CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, entry_hash TEXT, prev_hash TEXT, timestamp INTEGER, action TEXT, actor TEXT, status TEXT, details TEXT);")
@@ -225,6 +232,7 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
             put("reply_to_sender", msg.replyToSender)
             put("reply_to_text", msg.replyToText)
             put("target_peer", msg.targetPeer)
+            put("file_id", msg.fileId)
         }
         val rowId = db.insertWithOnConflict("messages", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
         return rowId != -1L
@@ -233,9 +241,9 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
     fun getMessages(groupId: String? = null): List<FeedMessage> {
         val list = mutableListOf<FeedMessage>()
         val query = if (groupId.isNullOrEmpty()) {
-            "SELECT msg_id, group_id, sender_name, content, msg_type, file_name, file_size, mime_type, local_path, timestamp, is_emergency, reply_to_id, reply_to_sender, reply_to_text, target_peer FROM messages ORDER BY timestamp DESC LIMIT 100"
+            "SELECT msg_id, group_id, sender_name, content, msg_type, file_name, file_size, mime_type, local_path, timestamp, is_emergency, reply_to_id, reply_to_sender, reply_to_text, target_peer, file_id FROM messages ORDER BY timestamp DESC LIMIT 100"
         } else {
-            "SELECT msg_id, group_id, sender_name, content, msg_type, file_name, file_size, mime_type, local_path, timestamp, is_emergency, reply_to_id, reply_to_sender, reply_to_text, target_peer FROM messages WHERE group_id = ? ORDER BY timestamp ASC LIMIT 200"
+            "SELECT msg_id, group_id, sender_name, content, msg_type, file_name, file_size, mime_type, local_path, timestamp, is_emergency, reply_to_id, reply_to_sender, reply_to_text, target_peer, file_id FROM messages WHERE group_id = ? ORDER BY timestamp ASC LIMIT 200"
         }
         val args = if (groupId.isNullOrEmpty()) null else arrayOf(groupId)
         val cursor = db.rawQuery(query, args)
@@ -258,7 +266,8 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
                     replyToId = if (!cursor.isNull(11)) cursor.getString(11) else null,
                     replyToSender = if (!cursor.isNull(12)) cursor.getString(12) else null,
                     replyToText = if (!cursor.isNull(13)) cursor.getString(13) else null,
-                    targetPeer = if (!cursor.isNull(14)) cursor.getString(14) else null
+                    targetPeer = if (!cursor.isNull(14)) cursor.getString(14) else null,
+                    fileId = if (!cursor.isNull(15)) cursor.getString(15) else null
                 )
             )
         }
@@ -634,6 +643,27 @@ class LowWearCryptoShredder(private val appContext: Context) : SQLiteOpenHelper(
     }
 
     // --- NIST SP 800-88 / DoD 5220.22-M 3-Pass Physical Zeroization ---
+    fun panicPhysicalPurgeWithTpi(
+        context: Context,
+        officerA: network.disaster.management.security.TwoPersonIntegrityManager.OfficerEndorsement,
+        officerB: network.disaster.management.security.TwoPersonIntegrityManager.OfficerEndorsement
+    ) {
+        network.disaster.management.security.TwoPersonIntegrityManager.verifyDualControlQuorum(
+            officerA,
+            officerB,
+            network.disaster.management.security.TwoPersonIntegrityManager.StrategicAction.PANIC_PHYSICAL_PURGE
+        )
+        try {
+            recordAuditEntry(
+                "TPI_PANIC_PURGE_AUTHORIZED",
+                "${officerA.officerCallsign}+${officerB.officerCallsign}",
+                "SUCCESS",
+                "Two-person integrity quorum verified. Initiating physical zeroization."
+            )
+        } catch (_: Exception) {}
+        panicPhysicalPurge(context)
+    }
+
     fun panicPhysicalPurge(context: Context) {
         close()
         VaultKeyManager.purgeVaultSecurity(context)

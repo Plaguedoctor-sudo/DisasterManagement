@@ -34,6 +34,14 @@ object AppStopManager {
             WifiMeshSupervisor.shared?.stopMesh()
         } catch (_: Throwable) {}
 
+        try {
+            network.disaster.management.transport.WifiDirectMeshSupervisor.shared?.stopMesh()
+        } catch (_: Throwable) {}
+
+        try {
+            network.disaster.management.transport.ApkPropagationServer.shared?.stop()
+        } catch (_: Throwable) {}
+
         // 2. Halt Foreground Service and wakelocks
         try {
             MeshForegroundService.stop(activity)

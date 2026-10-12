@@ -50,6 +50,10 @@ import network.disaster.management.ui.QrScannerActivity
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.widget.HorizontalScrollView
+import network.disaster.management.map.DisasterIncidentType
+import network.disaster.management.map.MapIncident
+import network.disaster.management.map.TacticalPoint
+import network.disaster.management.system.EmergencyRescueSignaler
 import java.io.File
 import java.io.FileOutputStream
 import java.security.SecureRandom
@@ -62,12 +66,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var batteryManager: OemBatteryManager
     private lateinit var mediaChunker: MediaChunkingEngine
     private lateinit var gpsHelper: GpsBeaconHelper
+    private lateinit var rescueSignaler: EmergencyRescueSignaler
     private val memoryLock = NativeMemoryLock()
     private val hybridEngine = HybridEngine()
     private val acousticModem = FastFskModem()
     private val secureRandom = SecureRandom()
     private val simEngine = network.disaster.management.simulation.SurvivorSimulationEngine()
     private var mapTacticalView: network.disaster.management.ui.TacticalLocalMapView? = null
+    private var selectedIncident: MapIncident? = null
+    private var currentIncidents: List<MapIncident> = emptyList()
 
     private var sessionKeyBufferAddress: Long = 0L
     private val localRecipientTag = ByteArray(16).apply {
@@ -151,12 +158,13 @@ class MainActivity : AppCompatActivity() {
         mediaChunker = MediaChunkingEngine(this, shredder)
         batteryManager = OemBatteryManager(this)
         gpsHelper = GpsBeaconHelper(this)
+        rescueSignaler = EmergencyRescueSignaler(this)
 
         setupPermissionBanner()
         setupStopSwitch()
         setupTabs()
         setupBroadcastFeed()
-        setupTacticalMapAndSimulation()
+        setupTacticalMap()
         setupGroupsTab()
         setupMediaTab()
         setupRelaysTab()
@@ -170,6 +178,24 @@ class MainActivity : AppCompatActivity() {
 
         checkAndRequestAllPermissions()
         startPeriodicRefresh()
+        handleFocusIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleFocusIntent(intent)
+    }
+
+    private fun handleFocusIntent(intent: Intent?) {
+        if (intent == null) return
+        if (intent.hasExtra("EXTRA_FOCUS_LAT") && intent.hasExtra("EXTRA_FOCUS_LON")) {
+            val lat = intent.getDoubleExtra("EXTRA_FOCUS_LAT", 0.0)
+            val lon = intent.getDoubleExtra("EXTRA_FOCUS_LON", 0.0)
+            val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
+            tabLayout?.getTabAt(1)?.select()
+            mapTacticalView?.centerOn(TacticalPoint(lat, lon))
+        }
     }
 
     private fun setupStopSwitch() {
@@ -195,7 +221,7 @@ class MainActivity : AppCompatActivity() {
         val tabRelays = findViewById<View>(R.id.layoutTabRelays)
 
         tabLayout.addTab(tabLayout.newTab().setText("Feed"))
-        tabLayout.addTab(tabLayout.newTab().setText("Map & Sim"))
+        tabLayout.addTab(tabLayout.newTab().setText("Tactical Map"))
         tabLayout.addTab(tabLayout.newTab().setText("Groups"))
         tabLayout.addTab(tabLayout.newTab().setText("Media Share"))
         tabLayout.addTab(tabLayout.newTab().setText("Relays"))
@@ -215,11 +241,12 @@ class MainActivity : AppCompatActivity() {
                     }
                     1 -> {
                         tabMap?.visibility = View.VISIBLE
-                        updateSimulationUi()
+                        updateTacticalMapUi()
                     }
                     2 -> {
                         tabGroups.visibility = View.VISIBLE
                         loadGroups()
+                        updateRollCallSummary()
                     }
                     3 -> tabMedia.visibility = View.VISIBLE
                     4 -> {
@@ -234,336 +261,199 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun setupTacticalMapAndSimulation() {
+    private fun setupTacticalMap() {
         mapTacticalView = findViewById(R.id.mapTacticalView)
-        mapTacticalView?.simulationEngine = simEngine
 
-        val btnToggleStealth = findViewById<Button>(R.id.btnSimToggleStealth)
-        val btnMicroBurst = findViewById<Button>(R.id.btnSimMicroBurst)
-        val btnStep = findViewById<Button>(R.id.btnSimStep)
-        val btnWater = findViewById<Button>(R.id.btnSimScavengeWater)
-        val btnMed = findViewById<Button>(R.id.btnSimScavengeMed)
-        val btnExtraction = findViewById<Button>(R.id.btnSimExtraction)
+        val tvMapGpsStatus = findViewById<TextView>(R.id.tvMapGpsStatus)
+        val btnCenterMyLocation = findViewById<Button>(R.id.btnCenterMyLocation)
+        val btnFilterAll = findViewById<Button>(R.id.btnFilterAll)
+        val btnFilterSos = findViewById<Button>(R.id.btnFilterSos)
+        val btnFilterHazards = findViewById<Button>(R.id.btnFilterHazards)
+        val btnFilterSupplies = findViewById<Button>(R.id.btnFilterSupplies)
+        val btnFilterSafe = findViewById<Button>(R.id.btnFilterSafe)
         val btnZoomIn = findViewById<Button>(R.id.btnMapZoomIn)
         val btnZoomOut = findViewById<Button>(R.id.btnMapZoomOut)
-        val btnInventory = findViewById<Button>(R.id.btnSimInventory)
-        val btnHighlight = findViewById<Button>(R.id.btnSimHighlight)
-        val btnHostileIntel = findViewById<Button>(R.id.btnSimHostileIntel)
+        val cardSelected = findViewById<View>(R.id.cardSelectedIncident)
+        val btnIncidentClose = findViewById<ImageButton>(R.id.btnIncidentClose)
+        val btnIncidentCopyGps = findViewById<Button>(R.id.btnIncidentCopyGps)
 
-        btnToggleStealth?.setOnClickListener {
-            val isStealth = simEngine.toggleRadioSilence()
-            network.disaster.management.transport.BleMeshSupervisor.shared?.setStealthMode(isStealth)
-            updateSimulationUi()
-            val status = if (isStealth) "Radio Silence Active (0m RF Footprint)" else "Active Mesh Restored (~65m RF Footprint)"
-            Toast.makeText(this, status, Toast.LENGTH_SHORT).show()
-        }
-
-        btnMicroBurst?.setOnClickListener {
-            val (success, detail) = simEngine.triggerMicroBurstSos()
-            // Micro-burst 4,096-byte distress packet through BLE mesh supervisor
-            val dummyPacket = ByteArray(4096) { 0xD1.toByte() }
-            network.disaster.management.transport.BleMeshSupervisor.shared?.burstTransmit(dummyPacket, 150L)
-            updateSimulationUi()
-            Toast.makeText(this, detail, Toast.LENGTH_LONG).show()
-        }
-
-        btnStep?.setOnClickListener {
-            simEngine.stepSimulation()
-            updateSimulationUi()
-        }
-
-        btnWater?.setOnClickListener {
-            val res = simEngine.scavengeNearestSupply(network.disaster.management.map.SupplyType.POTABLE_WATER)
-            updateSimulationUi()
-            Toast.makeText(this, res, Toast.LENGTH_SHORT).show()
-        }
-
-        btnMed?.setOnClickListener {
-            val res = simEngine.scavengeNearestSupply(network.disaster.management.map.SupplyType.TRAUMA_KIT)
-            updateSimulationUi()
-            Toast.makeText(this, res, Toast.LENGTH_SHORT).show()
-        }
-
-        btnExtraction?.setOnClickListener {
-            val res = simEngine.scavengeNearestSupply(network.disaster.management.map.SupplyType.SHELTER_EXTRACTION)
-            updateSimulationUi()
-            Toast.makeText(this, res, Toast.LENGTH_LONG).show()
-        }
-
-        btnInventory?.setOnClickListener {
-            showInventoryManagerDialog()
-        }
-
-        btnHighlight?.setOnClickListener {
-            showResourceHighlightDialog()
-        }
-
-        btnHostileIntel?.setOnClickListener {
-            showHostileIntelDialog()
-        }
-
-        btnZoomIn?.setOnClickListener {
-            mapTacticalView?.zoomIn()
-        }
-
-        btnZoomOut?.setOnClickListener {
-            mapTacticalView?.zoomOut()
-        }
-
-        updateSimulationUi()
-    }
-
-    private fun updateSimulationUi() {
-        val s = simEngine.survivor
-        val assessment = simEngine.evaluateTacticalSituation()
-
-        findViewById<TextView>(R.id.tvSimThreatBanner)?.apply {
-            text = assessment.advisoryText
-            setTextColor(
-                when (assessment.threatLevel) {
-                    network.disaster.management.map.ThreatLevel.STEALTH_SECURE -> 0xFF00FF66.toInt()
-                    network.disaster.management.map.ThreatLevel.ELEVATED_RISK -> 0xFFFFCC00.toInt()
-                    network.disaster.management.map.ThreatLevel.CRITICAL_TARGETED -> 0xFFFF2222.toInt()
+        btnCenterMyLocation?.setOnClickListener {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val coords = gpsHelper.getFastestCoordinates()
+                withContext(Dispatchers.Main) {
+                    if (coords != null) {
+                        val pt = TacticalPoint(coords.latitude, coords.longitude)
+                        mapTacticalView?.userLocation = pt
+                        mapTacticalView?.centerOn(pt)
+                        tvMapGpsStatus?.text = "📍 GPS: ${"%.5f".format(coords.latitude)}, ${"%.5f".format(coords.longitude)}"
+                        Toast.makeText(this@MainActivity, "Centered on current GPS coordinates", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@MainActivity, "Acquiring GPS fix... Please ensure location is enabled", Toast.LENGTH_SHORT).show()
+                    }
                 }
-            )
+            }
         }
 
-        findViewById<TextView>(R.id.tvSimVitals)?.text =
-            "❤️ HP: ${s.health}% | 💧 Water: ${s.hydration}% | 🥫 Food: ${s.energy}% | 🔋 Bat: ${s.battery}%"
+        btnFilterAll?.setOnClickListener {
+            mapTacticalView?.activeFilter = null
+            highlightFilterButton(btnFilterAll)
+        }
+        btnFilterSos?.setOnClickListener {
+            mapTacticalView?.activeFilter = DisasterIncidentType.DISTRESS_SOS
+            highlightFilterButton(btnFilterSos)
+        }
+        btnFilterHazards?.setOnClickListener {
+            mapTacticalView?.activeFilter = DisasterIncidentType.HAZARD_ALERT
+            highlightFilterButton(btnFilterHazards)
+        }
+        btnFilterSupplies?.setOnClickListener {
+            mapTacticalView?.activeFilter = DisasterIncidentType.SUPPLY_REQUEST
+            highlightFilterButton(btnFilterSupplies)
+        }
+        btnFilterSafe?.setOnClickListener {
+            mapTacticalView?.activeFilter = DisasterIncidentType.CIVILIAN_SAFE
+            highlightFilterButton(btnFilterSafe)
+        }
 
-        findViewById<TextView>(R.id.tvSimInventorySummary)?.text =
-            "🎒 INV: 💧 ${s.inventory.waterLiters}L | 🥫 ${s.inventory.foodRations} Rations | 🩹 ${s.inventory.traumaKits} MedKits | 🧪 ${s.inventory.purificationTabs} Tabs | 🔋 ${s.inventory.batteryMah}mAh"
+        btnZoomIn?.setOnClickListener { mapTacticalView?.zoomIn() }
+        btnZoomOut?.setOnClickListener { mapTacticalView?.zoomOut() }
 
-        findViewById<Button>(R.id.btnSimToggleStealth)?.apply {
-            if (s.isRadioSilence) {
-                text = "🔊 RESUME MESH"
-                setBackgroundColor(0xFF1E3A8A.toInt())
+        mapTacticalView?.onIncidentSelected = { incident ->
+            selectedIncident = incident
+            if (incident != null) {
+                findViewById<TextView>(R.id.tvIncidentCardTitle)?.text = when (incident.type) {
+                    DisasterIncidentType.DISTRESS_SOS -> "🔴 DISTRESS ALERT"
+                    DisasterIncidentType.HAZARD_ALERT -> "⚠️ HAZARD REPORT"
+                    DisasterIncidentType.SUPPLY_REQUEST -> "🟡 SUPPLY NEED"
+                    DisasterIncidentType.CIVILIAN_SAFE -> "🟢 CIVILIAN SAFE"
+                }
+                val distMeters = mapTacticalView?.userLocation?.distanceTo(incident.location)?.toInt()
+                val distText = if (distMeters != null) " • ${distMeters}m away" else ""
+                findViewById<TextView>(R.id.tvIncidentCardSender)?.text = "@${incident.senderName}$distText"
+                findViewById<TextView>(R.id.tvIncidentCardContent)?.text = incident.details
+                cardSelected?.visibility = View.VISIBLE
             } else {
-                text = "🔇 RADIO SILENCE"
-                setBackgroundColor(0xFF4A154B.toInt())
+                cardSelected?.visibility = View.GONE
             }
         }
 
-        findViewById<TextView>(R.id.tvSimIncidentLog)?.text =
-            simEngine.eventLog.firstOrNull() ?: "TACTICAL INTEL: Surveillance active in sector."
+        btnIncidentClose?.setOnClickListener {
+            selectedIncident = null
+            mapTacticalView?.clearSelection()
+            cardSelected?.visibility = View.GONE
+        }
 
-        mapTacticalView?.invalidate()
+        btnIncidentCopyGps?.setOnClickListener {
+            val inc = selectedIncident
+            if (inc != null) {
+                val clipMgr = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("GPS", "${inc.location.lat},${inc.location.lon}")
+                clipMgr.setPrimaryClip(clip)
+                Toast.makeText(this, "Coordinates copied: ${inc.location.lat},${inc.location.lon}", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        updateTacticalMapUi()
     }
 
-    private fun showInventoryManagerDialog() {
-        val inv = simEngine.survivor.inventory
-        val options = arrayOf(
-            "💧 Drink Water (-0.5L / +35 Hydration) [Cur: ${inv.waterLiters}L]",
-            "🥫 Eat Ration (-1 Ration / +40 Energy) [Cur: ${inv.foodRations}]",
-            "🩹 Apply Med-Kit (-1 Kit / +50 HP) [Cur: ${inv.traumaKits}]",
-            "🧪 Use Water Purification Tablet (-1 Tab) [Cur: ${inv.purificationTabs}]",
-            "✏️ Adjust Stock Values (Edit Inventory)"
+    private fun highlightFilterButton(activeBtn: Button?) {
+        val filterBtns = listOfNotNull(
+            findViewById<Button>(R.id.btnFilterAll),
+            findViewById<Button>(R.id.btnFilterSos),
+            findViewById<Button>(R.id.btnFilterHazards),
+            findViewById<Button>(R.id.btnFilterSupplies),
+            findViewById<Button>(R.id.btnFilterSafe)
         )
-
-        AlertDialog.Builder(this)
-            .setTitle("🎒 Survivor Inventory & Rations")
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> {
-                        val ok = simEngine.survivor.drinkWater(0.5)
-                        if (ok) {
-                            simEngine.logEvent("💧 Consumed 0.5L water from backpack. Hydration now ${simEngine.survivor.hydration}%.")
-                            Toast.makeText(this, "Drank 0.5L water", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(this, "No water remaining in backpack!", Toast.LENGTH_SHORT).show()
-                        }
-                        updateSimulationUi()
-                    }
-                    1 -> {
-                        val ok = simEngine.survivor.eatRation()
-                        if (ok) {
-                            simEngine.logEvent("🥫 Ate ration. Energy now ${simEngine.survivor.energy}%.")
-                            Toast.makeText(this, "Consumed 1 ration pack", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(this, "No rations remaining!", Toast.LENGTH_SHORT).show()
-                        }
-                        updateSimulationUi()
-                    }
-                    2 -> {
-                        val ok = simEngine.survivor.applyTraumaKit()
-                        if (ok) {
-                            simEngine.logEvent("🩹 Applied trauma kit. Health now ${simEngine.survivor.health}%.")
-                            Toast.makeText(this, "Applied trauma kit", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(this, "No trauma kits remaining!", Toast.LENGTH_SHORT).show()
-                        }
-                        updateSimulationUi()
-                    }
-                    3 -> {
-                        if (inv.purificationTabs > 0) {
-                            inv.purificationTabs--
-                            simEngine.logEvent("🧪 Purified scrounged water with tablet. Clean supply safe.")
-                            Toast.makeText(this, "Purification tablet used", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(this, "No purification tablets left!", Toast.LENGTH_SHORT).show()
-                        }
-                        updateSimulationUi()
-                    }
-                    4 -> showCustomInventoryEditorDialog()
-                }
-            }
-            .setNegativeButton("Close", null)
-            .show()
+        for (btn in filterBtns) {
+            btn.alpha = if (btn == activeBtn) 1.0f else 0.6f
+        }
     }
 
-    private fun showCustomInventoryEditorDialog() {
-        val inv = simEngine.survivor.inventory
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 24, 48, 24)
-        }
-
-        val etWater = EditText(this).apply {
-            hint = "Water in Liters (e.g. 3.0)"
-            setText(inv.waterLiters.toString())
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-        }
-        val etFood = EditText(this).apply {
-            hint = "Food Rations (e.g. 4)"
-            setText(inv.foodRations.toString())
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        }
-        val etMeds = EditText(this).apply {
-            hint = "Trauma Kits (e.g. 2)"
-            setText(inv.traumaKits.toString())
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        }
-        val etTabs = EditText(this).apply {
-            hint = "Purification Tablets (e.g. 10)"
-            setText(inv.purificationTabs.toString())
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        }
-        val etBat = EditText(this).apply {
-            hint = "Battery mAh (e.g. 4500)"
-            setText(inv.batteryMah.toString())
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        }
-
-        layout.addView(TextView(this).apply { text = "Water (Liters):"; setTextColor(0xFFEEEEEE.toInt()) })
-        layout.addView(etWater)
-        layout.addView(TextView(this).apply { text = "Food Rations:"; setTextColor(0xFFEEEEEE.toInt()) })
-        layout.addView(etFood)
-        layout.addView(TextView(this).apply { text = "Trauma Kits:"; setTextColor(0xFFEEEEEE.toInt()) })
-        layout.addView(etMeds)
-        layout.addView(TextView(this).apply { text = "Purification Tablets:"; setTextColor(0xFFEEEEEE.toInt()) })
-        layout.addView(etTabs)
-        layout.addView(TextView(this).apply { text = "Battery Power (mAh):"; setTextColor(0xFFEEEEEE.toInt()) })
-        layout.addView(etBat)
-
-        AlertDialog.Builder(this)
-            .setTitle("✏️ Update Backpack Inventory")
-            .setView(layout)
-            .setPositiveButton("Save") { _, _ ->
-                inv.waterLiters = etWater.text.toString().toDoubleOrNull() ?: inv.waterLiters
-                inv.foodRations = etFood.text.toString().toIntOrNull() ?: inv.foodRations
-                inv.traumaKits = etMeds.text.toString().toIntOrNull() ?: inv.traumaKits
-                inv.purificationTabs = etTabs.text.toString().toIntOrNull() ?: inv.purificationTabs
-                inv.batteryMah = etBat.text.toString().toIntOrNull() ?: inv.batteryMah
-                simEngine.logEvent("🎒 Inventory manually updated by survivor.")
-                updateSimulationUi()
-                Toast.makeText(this, "Inventory updated", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun showResourceHighlightDialog() {
-        val caches = simEngine.supplyCaches
-        val labels = caches.map { sc ->
-            val star = if (sc.isHighlighted) "⭐ " else "⭕ "
-            val dist = simEngine.survivor.location.distanceTo(sc.location).toInt()
-            "$star${sc.name} (${dist}m) [${if (sc.isHighlighted) "HIGHLIGHTED" else "Normal"}]"
-        }.toTypedArray()
-
-        AlertDialog.Builder(this)
-            .setTitle("⭐ Highlight Tactical Resources")
-            .setItems(labels) { _, which ->
-                val chosen = caches[which]
-                val newState = mapTacticalView?.toggleHighlightSupply(chosen.id) ?: !chosen.isHighlighted
-                chosen.isHighlighted = newState
-                val status = if (newState) "Highlighted on HUD" else "Highlight removed"
-                simEngine.logEvent("⭐ Toggled highlight on ${chosen.name}: $status")
-                updateSimulationUi()
-                Toast.makeText(this, "${chosen.name}: $status", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Close", null)
-            .show()
-    }
-
-    private fun showHostileIntelDialog() {
-        val detector = network.disaster.management.security.HostileActorDetector.shared
-        val profiles = detector.getAllProfiles()
-        val traps = detector.getDetectedAmbushTraps()
-
-        val sb = StringBuilder()
-        sb.append("🛡️ COUNTER-INTEL DETECTION REPORT\n\n")
-
-        if (traps.isNotEmpty()) {
-            sb.append("💀 ACTIVE AMBUSH TRAPS (${traps.size}):\n")
-            for (t in traps) {
-                sb.append("• ${t.hostileSender}: \"${t.claimTitle}\"\n  → Location is ${t.distToHostilePatrolMeters.toInt()}m from hostile killzone!\n")
-            }
-            sb.append("\n")
-        } else {
-            sb.append("💀 No ambush bait traps currently active.\n\n")
-        }
-
-        if (profiles.isNotEmpty()) {
-            sb.append("👥 MONITORED NETWORK ACTORS (${profiles.size}):\n")
-            for (p in profiles) {
-                val icon = when (p.classification) {
-                    network.disaster.management.map.ActorClassification.HOSTILE_INFILTRATOR -> "🚨 HOSTILE"
-                    network.disaster.management.map.ActorClassification.SUSPICIOUS_ACTOR -> "⚠️ SUSPICIOUS"
-                    network.disaster.management.map.ActorClassification.VERIFIED_CIVILIAN -> "🟢 VERIFIED"
-                    network.disaster.management.map.ActorClassification.UNVERIFIED_CIVILIAN -> "⚪ UNVERIFIED"
-                }
-                sb.append("[$icon] ${p.senderName} (Trust: ${p.trustScore}%)\n")
-                for (flag in p.anomalyFlags) {
-                    sb.append("   - $flag\n")
-                }
-            }
-        } else {
-            sb.append("👥 No peer behavioral telemetry collected yet.\nIncoming mesh broadcasts are automatically evaluated for ambush lures and spoofing.")
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("🛡️ Hostile Infiltration Intel")
-            .setMessage(sb.toString())
-            .setPositiveButton("OK", null)
-            .setNeutralButton("Simulate Hostile Lure Probe") { _, _ ->
-                simulateHostileInfiltrationProbe()
-            }
-            .show()
-    }
-
-    private fun simulateHostileInfiltrationProbe() {
-        // Creates a simulated hostile infiltrator trying to lure civilians into the drone patrol zone
-        val hostileSender = "MilitiaRecon-04"
-        val droneThreat = simEngine.hostiles.firstOrNull()
-        val trapLoc = droneThreat?.location ?: simEngine.survivor.location
-        val lureMsg = FeedMessage(
-            id = UUID.randomUUID().toString(),
-            groupId = "GROUP_PUBLIC_BROADCAST",
-            senderName = hostileSender,
-            content = "SAFE EVACUATION POINT OPEN! FREE WATER & AID AT LOC:${trapLoc.lat},${trapLoc.lon}. ALL SURVIVORS REPORT NOW!",
-            type = MessageType.TEXT,
-            timestamp = System.currentTimeMillis(),
-            isEmergency = true
-        )
-        network.disaster.management.security.HostileActorDetector.shared.analyzeMessage(lureMsg, simEngine.hostiles)
+    private fun updateTacticalMapUi() {
         lifecycleScope.launch(Dispatchers.IO) {
-            shredder.insertMessage(lureMsg)
+            val coords = gpsHelper.getFastestCoordinates()
+            val messages = shredder.getMessages(null)
+            val incidents = parseMapIncidents(messages)
+            currentIncidents = incidents
+
             withContext(Dispatchers.Main) {
-                loadBroadcastMessages()
-                updateSimulationUi()
-                Toast.makeText(this@MainActivity, "🚨 Infiltrator detected & flagged!", Toast.LENGTH_LONG).show()
+                if (coords != null) {
+                    val pt = TacticalPoint(coords.latitude, coords.longitude)
+                    mapTacticalView?.userLocation = pt
+                    findViewById<TextView>(R.id.tvMapGpsStatus)?.text =
+                        "📍 GPS: ${"%.5f".format(coords.latitude)}, ${"%.5f".format(coords.longitude)}"
+                } else {
+                    findViewById<TextView>(R.id.tvMapGpsStatus)?.text = "📍 GPS: Standby / Acquiring fix..."
+                }
+
+                mapTacticalView?.incidents = incidents
+
+                val sosCount = incidents.count { it.type == DisasterIncidentType.DISTRESS_SOS }
+                val hazardCount = incidents.count { it.type == DisasterIncidentType.HAZARD_ALERT }
+                val supplyCount = incidents.count { it.type == DisasterIncidentType.SUPPLY_REQUEST }
+                val safeCount = incidents.count { it.type == DisasterIncidentType.CIVILIAN_SAFE }
+
+                findViewById<Button>(R.id.btnFilterAll)?.text = "🌐 ALL (${incidents.size})"
+                findViewById<Button>(R.id.btnFilterSos)?.text = "🔴 DISTRESS ($sosCount)"
+                findViewById<Button>(R.id.btnFilterHazards)?.text = "⚠️ HAZARDS ($hazardCount)"
+                findViewById<Button>(R.id.btnFilterSupplies)?.text = "🟡 SUPPLIES ($supplyCount)"
+                findViewById<Button>(R.id.btnFilterSafe)?.text = "🟢 SAFE ($safeCount)"
+
+                findViewById<TextView>(R.id.tvMapIncidentSummary)?.text =
+                    "TACTICAL GIS HUD: $sosCount Distress Alerts • $hazardCount Hazards • $supplyCount Supply Needs • $safeCount Safe Check-ins."
             }
         }
+    }
+
+    private fun parseMapIncidents(messages: List<FeedMessage>): List<MapIncident> {
+        val list = mutableListOf<MapIncident>()
+        val locRegex = Regex("""\[?LOC:\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\]?""")
+
+        for (msg in messages) {
+            val match = locRegex.find(msg.content)
+            if (match != null) {
+                val lat = match.groupValues[1].toDoubleOrNull()
+                val lon = match.groupValues[2].toDoubleOrNull()
+                if (lat != null && lon != null) {
+                    val upper = msg.content.uppercase()
+                    val type = when {
+                        msg.isEmergency || msg.type == MessageType.EMERGENCY ||
+                                upper.contains("DISTRESS") || upper.contains("TRAPPED") || upper.contains("SOS") || upper.contains("MEDICAL") ->
+                            DisasterIncidentType.DISTRESS_SOS
+                        upper.contains("HAZARD") || upper.contains("FIRE") || upper.contains("FLOOD") ||
+                                upper.contains("DOWNED") || upper.contains("GAS") || upper.contains("COLLAPSE") ->
+                            DisasterIncidentType.HAZARD_ALERT
+                        upper.contains("SUPPLIES") || upper.contains("SUPPLY") || upper.contains("WATER") ||
+                                upper.contains("FOOD") || upper.contains("MEDIC") || upper.contains("NEED") ->
+                            DisasterIncidentType.SUPPLY_REQUEST
+                        upper.contains("SAFE") || upper.contains("STATUS: SAFE") ->
+                            DisasterIncidentType.CIVILIAN_SAFE
+                        else ->
+                            if (msg.isEmergency) DisasterIncidentType.DISTRESS_SOS else DisasterIncidentType.CIVILIAN_SAFE
+                    }
+
+                    val title = when (type) {
+                        DisasterIncidentType.DISTRESS_SOS -> "Distress Beacon"
+                        DisasterIncidentType.HAZARD_ALERT -> "Hazard Alert"
+                        DisasterIncidentType.SUPPLY_REQUEST -> "Supply Request"
+                        DisasterIncidentType.CIVILIAN_SAFE -> "Civilian Safe"
+                    }
+
+                    list.add(
+                        MapIncident(
+                            id = msg.id,
+                            type = type,
+                            title = title,
+                            senderName = msg.senderName,
+                            location = TacticalPoint(lat, lon),
+                            timestamp = msg.timestamp,
+                            details = msg.content
+                        )
+                    )
+                }
+            }
+        }
+        return list
     }
 
     private fun setupBroadcastFeed() {
@@ -576,6 +466,10 @@ class MainActivity : AppCompatActivity() {
         val btnQuickTrapped = findViewById<Button>(R.id.btnQuickTrapped)
         val btnQuickSupplies = findViewById<Button>(R.id.btnQuickSupplies)
         val btnQuickHazard = findViewById<Button>(R.id.btnQuickHazard)
+
+        val btnEmergencySosBig = findViewById<Button>(R.id.btnEmergencySosBig)
+        val btnRescueSiren = findViewById<Button>(R.id.btnRescueSiren)
+        val btnRescueStrobe = findViewById<Button>(R.id.btnRescueStrobe)
 
         val btnCancelReply = findViewById<Button>(R.id.btnCancelReply)
         val btnManageFriends = findViewById<Button>(R.id.btnManageFriends)
@@ -613,6 +507,21 @@ class MainActivity : AppCompatActivity() {
             showAppPropagationDialog()
         }
 
+        btnEmergencySosBig?.setOnClickListener {
+            broadcastDistressAlert()
+            showRescueBeaconPrompt()
+        }
+
+        btnRescueSiren?.setOnClickListener {
+            rescueSignaler.toggleSiren()
+            updateRescueSignalerUi()
+        }
+
+        btnRescueStrobe?.setOnClickListener {
+            rescueSignaler.toggleStrobe()
+            updateRescueSignalerUi()
+        }
+
         broadcastAdapter = MessageAdapter(
             messages = emptyList(),
             onFileClick = { msg -> openAttachment(msg) },
@@ -620,7 +529,12 @@ class MainActivity : AppCompatActivity() {
             onReplyClick = { msg -> handleReplyToMessage(msg) },
             onUserTrustClick = { msg -> showUserTrustDialog(msg) },
             onAcceptFriendClick = { msg -> acceptFriendRequest(msg.senderName) },
-            onRejectFriendClick = { msg -> rejectFriendRequest(msg.senderName) }
+            onRejectFriendClick = { msg -> rejectFriendRequest(msg.senderName) },
+            onLocationClick = { lat, lon, _ ->
+                val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
+                tabLayout?.getTabAt(1)?.select()
+                mapTacticalView?.centerOn(TacticalPoint(lat, lon))
+            }
         )
         rvBroadcast.layoutManager = LinearLayoutManager(this)
         rvBroadcast.adapter = broadcastAdapter
@@ -635,14 +549,20 @@ class MainActivity : AppCompatActivity() {
 
         btnDistress.setOnClickListener {
             broadcastDistressAlert()
+            showRescueBeaconPrompt()
         }
 
         btnQuickSafe.setOnClickListener {
-            broadcastReport("🟢 STATUS: SAFE — Civilian check-in confirmed")
+            lifecycleScope.launch(Dispatchers.IO) {
+                val coords = gpsHelper.getFastestCoordinates()?.toBeaconString()
+                val locTag = if (coords != null) " [$coords]" else ""
+                broadcastReport("🟢 STATUS: SAFE — Civilian check-in confirmed$locTag")
+            }
         }
 
         btnQuickTrapped.setOnClickListener {
             broadcastDistressAlert("🔴 CRITICAL: TRAPPED / MEDICAL AID REQUIRED")
+            showRescueBeaconPrompt()
         }
 
         btnQuickSupplies.setOnClickListener {
@@ -653,7 +573,52 @@ class MainActivity : AppCompatActivity() {
             showQuickHazardDialog()
         }
 
+        updateRescueSignalerUi()
         loadBroadcastMessages()
+    }
+
+    private fun updateRescueSignalerUi() {
+        val btnSiren = findViewById<Button>(R.id.btnRescueSiren)
+        val btnStrobe = findViewById<Button>(R.id.btnRescueStrobe)
+
+        if (rescueSignaler.isSirenActive) {
+            btnSiren?.text = "🔊 SIREN: ACTIVE (LOUD)"
+            btnSiren?.setBackgroundColor(Color.parseColor("#DC2626"))
+            btnSiren?.setTextColor(Color.WHITE)
+        } else {
+            btnSiren?.text = "🔊 SIREN: OFF"
+            btnSiren?.setBackgroundColor(Color.parseColor("#1E293B"))
+            btnSiren?.setTextColor(Color.parseColor("#F87171"))
+        }
+
+        if (rescueSignaler.isStrobeActive) {
+            btnStrobe?.text = "🔦 SOS FLASH: FLASHING"
+            btnStrobe?.setBackgroundColor(Color.parseColor("#D97706"))
+            btnStrobe?.setTextColor(Color.WHITE)
+        } else {
+            btnStrobe?.text = "🔦 SOS FLASH: OFF"
+            btnStrobe?.setBackgroundColor(Color.parseColor("#1E293B"))
+            btnStrobe?.setTextColor(Color.parseColor("#FBBF24"))
+        }
+    }
+
+    private fun showRescueBeaconPrompt() {
+        if (!rescueSignaler.isSirenActive && !rescueSignaler.isStrobeActive) {
+            AlertDialog.Builder(this)
+                .setTitle("🚨 DISTRESS TRANSMITTED")
+                .setMessage("Emergency radio packet broadcasted! Would you like to activate the continuous sweeping acoustic siren and Morse code optical strobe to alert nearby search parties & canines?")
+                .setPositiveButton("🔊 Turn ON Both Beacons") { _, _ ->
+                    if (!rescueSignaler.isSirenActive) rescueSignaler.toggleSiren()
+                    if (!rescueSignaler.isStrobeActive) rescueSignaler.toggleStrobe()
+                    updateRescueSignalerUi()
+                }
+                .setNeutralButton("🔦 Strobe Only") { _, _ ->
+                    if (!rescueSignaler.isStrobeActive) rescueSignaler.toggleStrobe()
+                    updateRescueSignalerUi()
+                }
+                .setNegativeButton("Keep Silent", null)
+                .show()
+        }
     }
 
     private var pendingLocationAttachment: String? = null
@@ -711,22 +676,14 @@ class MainActivity : AppCompatActivity() {
             "🍼 Infant Care / Baby Formula"
         )
         AlertDialog.Builder(this)
-            .setTitle("Broadcast Resource Need")
+            .setTitle("🟡 Request Supplies (Auto-GPS)")
             .setItems(options) { _, which ->
                 val selectedNeed = options[which]
-                AlertDialog.Builder(this)
-                    .setTitle("Voluntary Location Attachment")
-                    .setMessage("Attach your GPS coordinates to this resource request so nearby units can navigate to you?")
-                    .setPositiveButton("📍 Attach Location") { _, _ ->
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:ACQUIRING"
-                            broadcastReport("🟡 RESOURCE NEED: $selectedNeed [$coords]")
-                        }
-                    }
-                    .setNegativeButton("Do Not Attach") { _, _ ->
-                        broadcastReport("🟡 RESOURCE NEED: $selectedNeed")
-                    }
-                    .show()
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val coords = gpsHelper.getFastestCoordinates()?.toBeaconString()
+                    val locTag = if (coords != null) " [$coords]" else ""
+                    broadcastReport("🟡 RESOURCE NEED: $selectedNeed$locTag")
+                }
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -742,22 +699,14 @@ class MainActivity : AppCompatActivity() {
             "☣️ Chemical / Gas Leak Odor"
         )
         AlertDialog.Builder(this)
-            .setTitle("Broadcast Hazard Alert")
+            .setTitle("⚠️ Report Hazard / Danger (Auto-GPS)")
             .setItems(options) { _, which ->
                 val selectedHazard = options[which]
-                AlertDialog.Builder(this)
-                    .setTitle("Voluntary Location Attachment")
-                    .setMessage("Attach your GPS coordinates to mark this hazard location for other survivors?")
-                    .setPositiveButton("📍 Attach Location") { _, _ ->
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            val coords = gpsHelper.getFastestCoordinates()?.toBeaconString() ?: "LOC:ACQUIRING"
-                            broadcastReport("⚠️ HAZARD ALERT: $selectedHazard [$coords]")
-                        }
-                    }
-                    .setNegativeButton("Do Not Attach") { _, _ ->
-                        broadcastReport("⚠️ HAZARD ALERT: $selectedHazard")
-                    }
-                    .show()
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val coords = gpsHelper.getFastestCoordinates()?.toBeaconString()
+                    val locTag = if (coords != null) " [$coords]" else ""
+                    broadcastReport("⚠️ HAZARD ALERT: $selectedHazard$locTag")
+                }
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -767,12 +716,14 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             val messages = shredder.getMessages(null)
             for (msg in messages) {
-                network.disaster.management.security.HostileActorDetector.shared.analyzeMessage(msg, simEngine.hostiles)
+                network.disaster.management.security.HostileActorDetector.shared.analyzeMessage(msg, emptyList())
             }
             withContext(Dispatchers.Main) {
                 broadcastAdapter.updateMessages(messages)
                 val emptyTv = findViewById<TextView>(R.id.tvEmptyBroadcastFeed)
                 emptyTv?.visibility = if (messages.isEmpty()) View.VISIBLE else View.GONE
+                updateTacticalMapUi()
+                updateRollCallSummary()
             }
         }
     }
@@ -1316,7 +1267,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAppPropagationDialog() {
-        val apkServer = ApkPropagationServer.shared ?: ApkPropagationServer(this).also { it.start() }
+        var apkServer = ApkPropagationServer.shared
+        if (apkServer == null) {
+            apkServer = ApkPropagationServer(this).also {
+                ApkPropagationServer.shared = it
+                it.start()
+            }
+        } else {
+            apkServer.start()
+        }
         val portalUrl = apkServer.getPortalUrl()
 
         val options = arrayOf(
@@ -1327,7 +1286,7 @@ class MainActivity : AppCompatActivity() {
 
         AlertDialog.Builder(this)
             .setTitle("📲 Propagate Disaster Mesh App")
-            .setMessage("Propagate DisasterManagement app to non-app survivors without cell service:")
+            .setMessage("Propagate DisasterManagement app to non-app survivors without cell service:\n\nActive Server: $portalUrl")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> {
@@ -1389,7 +1348,11 @@ class MainActivity : AppCompatActivity() {
         targetPeer: String? = null,
         replyId: String? = null,
         replySender: String? = null,
-        replyText: String? = null
+        replyText: String? = null,
+        fileName: String? = null,
+        fileSize: Long? = null,
+        mimeType: String? = null,
+        fileId: String? = null
     ) {
         try {
             val now = System.currentTimeMillis()
@@ -1412,6 +1375,18 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (!replyText.isNullOrEmpty()) {
                     put("replyToText", replyText)
+                }
+                if (!fileName.isNullOrEmpty()) {
+                    put("fileName", fileName)
+                }
+                if (fileSize != null && fileSize > 0) {
+                    put("fileSize", fileSize)
+                }
+                if (!mimeType.isNullOrEmpty()) {
+                    put("mimeType", mimeType)
+                }
+                if (!fileId.isNullOrEmpty()) {
+                    put("fileId", fileId)
                 }
             }.toString()
             val inputBytes = json.toByteArray(Charsets.UTF_8)
@@ -1557,6 +1532,8 @@ class MainActivity : AppCompatActivity() {
         val rvGroups = findViewById<RecyclerView>(R.id.rvGroups)
         val btnCreateGroup = findViewById<Button>(R.id.btnCreateGroup)
         val btnJoinGroupQr = findViewById<Button>(R.id.btnJoinGroupQr)
+        val btnQuickRollCallPing = findViewById<Button>(R.id.btnQuickRollCallPing)
+        val tvRollCallSummary = findViewById<TextView>(R.id.tvRollCallSummary)
 
         groupAdapter = GroupAdapter(emptyList()) { group ->
             val intent = Intent(this, GroupChatActivity::class.java).apply {
@@ -1575,7 +1552,57 @@ class MainActivity : AppCompatActivity() {
             showJoinGroupDialog()
         }
 
+        btnQuickRollCallPing?.setOnClickListener {
+            broadcastReport("📡 ROLL CALL: Requesting status check-in from all family and team members. Please tap '🟢 I AM SAFE'!")
+            Toast.makeText(this, "Roll Call Request Broadcasted across Mesh", Toast.LENGTH_SHORT).show()
+        }
+
+        tvRollCallSummary?.setOnClickListener {
+            showFriendsManagementDialog()
+        }
+
+        updateRollCallSummary()
         loadGroups()
+    }
+
+    private fun updateRollCallSummary() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val contacts = shredder.getAllContacts().filter { it.isFriend }
+            val messages = shredder.getMessages(null)
+            val myId = UserIdentityManager.getUserName(this@MainActivity)
+
+            var safeCount = 0
+            var distressCount = 0
+            val unaccountedList = mutableListOf<String>()
+
+            for (contact in contacts) {
+                if (contact.peerId == myId) continue
+                val lastMsg = messages.filter { it.senderName == contact.peerId }.maxByOrNull { it.timestamp }
+                if (lastMsg == null) {
+                    unaccountedList.add(contact.peerId)
+                } else {
+                    val upper = lastMsg.content.uppercase()
+                    when {
+                        lastMsg.isEmergency || lastMsg.type == MessageType.EMERGENCY || upper.contains("DISTRESS") || upper.contains("TRAPPED") ->
+                            distressCount++
+                        upper.contains("SAFE") || upper.contains("STATUS: SAFE") ->
+                            safeCount++
+                        else ->
+                            unaccountedList.add(contact.peerId)
+                    }
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                val tvSummary = findViewById<TextView>(R.id.tvRollCallSummary)
+                if (contacts.isEmpty()) {
+                    tvSummary?.text = "No saved contacts yet. Tap here to pair with family & team via QR code."
+                } else {
+                    val unaccountedText = if (unaccountedList.isEmpty()) "None" else unaccountedList.take(3).joinToString(", ") { "@$it" } + if (unaccountedList.size > 3) " +${unaccountedList.size - 3} more" else ""
+                    tvSummary?.text = "🟢 Safe: $safeCount | 🔴 In Distress: $distressCount | ⚪ Unaccounted: ${unaccountedList.size} ($unaccountedText)\n[Tap to view contacts directory]"
+                }
+            }
+        }
     }
 
     private fun showJoinGroupDialog() {
@@ -1776,9 +1803,20 @@ class MainActivity : AppCompatActivity() {
                     mimeType = manifest.mimeType,
                     localFilePath = localFile.absolutePath,
                     timestamp = System.currentTimeMillis(),
-                    isEmergency = false
+                    isEmergency = false,
+                    fileId = manifest.fileId
                 )
                 shredder.insertMessage(feedMsg)
+                broadcastMeshEnvelope(
+                    msgId = feedMsg.id,
+                    senderId = senderId,
+                    content = feedMsg.content,
+                    type = type,
+                    fileName = manifest.fileName,
+                    fileSize = manifest.fileSize,
+                    mimeType = manifest.mimeType,
+                    fileId = manifest.fileId
+                )
 
                 withContext(Dispatchers.Main) {
                     pb.visibility = View.GONE
@@ -1981,9 +2019,27 @@ class MainActivity : AppCompatActivity() {
             msg.fileName?.let { File(File(filesDir, "mesh_media"), it) },
             msg.fileName?.let { File(File(filesDir, "received_media"), it) }
         )
-        val file = candidates.firstOrNull { it.exists() }
+        var file = candidates.firstOrNull { it.exists() && it.length() > 0 }
+        if (file == null && !msg.fileName.isNullOrEmpty()) {
+            val safeName = msg.fileName
+            val fileId = msg.fileId ?: UUID.nameUUIDFromBytes(safeName.toByteArray(Charsets.UTF_8)).toString().replace("-", "").take(16)
+            val chunkCount = shredder.getReceivedChunkCount(fileId)
+            val totalNeeded = if (msg.fileSize > 0) {
+                ((msg.fileSize + 3999) / 4000).toInt().coerceAtLeast(1)
+            } else {
+                chunkCount
+            }
+            if (chunkCount > 0 && chunkCount >= totalNeeded) {
+                val outDir = File(filesDir, "received_media").apply { mkdirs() }
+                val targetFile = File(outDir, safeName)
+                val success = shredder.reassembleFile(fileId, totalNeeded, targetFile)
+                if (success && targetFile.exists() && targetFile.length() > 0) {
+                    file = targetFile
+                }
+            }
+        }
         if (file == null) {
-            Toast.makeText(this, "File not found in local cache: ${msg.fileName}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "File chunks still arriving or missing: ${msg.fileName}", Toast.LENGTH_SHORT).show()
             return
         }
         android.util.Log.i("OpenAttachment", "Found file at: ${file.absolutePath}, size=${file.length()}")
@@ -2037,7 +2093,7 @@ class MainActivity : AppCompatActivity() {
                 delay(2500)
                 val messages = shredder.getMessages(null)
                 for (msg in messages) {
-                    network.disaster.management.security.HostileActorDetector.shared.analyzeMessage(msg, simEngine.hostiles)
+                    network.disaster.management.security.HostileActorDetector.shared.analyzeMessage(msg, emptyList())
                 }
                 val wifiPeers = network.disaster.management.transport.WifiMeshSupervisor.shared?.getActivePeerCount() ?: 0
                 val peerIps = network.disaster.management.transport.WifiMeshSupervisor.shared?.getActivePeerIps() ?: emptyList()
@@ -2049,6 +2105,8 @@ class MainActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     broadcastAdapter.updateMessages(messages)
                     updateStorageQuotaDisplay()
+                    updateTacticalMapUi()
+                    updateRollCallSummary()
 
                     val totalPeers = wifiPeers + blePeers + p2pPeers
                     val statusMsg = when {
@@ -2187,6 +2245,7 @@ class MainActivity : AppCompatActivity() {
         meshServicesStarted = true
         try {
             MeshForegroundService.start(this)
+            // If the supervisors are already active from a previous service start, ensure they are running
             network.disaster.management.transport.BleMeshSupervisor.shared?.startMesh()
             network.disaster.management.transport.WifiDirectMeshSupervisor.shared?.startMesh()
             network.disaster.management.transport.WifiMeshSupervisor.shared?.startMesh()
@@ -2195,6 +2254,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        rescueSignaler.stopAll()
         activeMediaPlayer?.release()
         activeMediaPlayer = null
         if (sessionKeyBufferAddress != 0L) {

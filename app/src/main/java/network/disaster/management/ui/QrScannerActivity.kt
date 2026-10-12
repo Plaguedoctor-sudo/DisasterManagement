@@ -119,40 +119,43 @@ class QrScannerActivity : AppCompatActivity() {
             return
         }
 
-        val mediaImage = imageProxy.image
-        if (mediaImage != null && mediaImage.format == ImageFormat.YUV_420_888) {
-            val yPlane = mediaImage.planes[0]
-            val yBuffer = yPlane.buffer
-            val yBytes = ByteArray(yBuffer.remaining())
-            yBuffer.get(yBytes)
+        try {
+            val mediaImage = imageProxy.image
+            if (mediaImage != null && mediaImage.format == ImageFormat.YUV_420_888) {
+                val yPlane = mediaImage.planes[0]
+                val yBuffer = yPlane.buffer
+                val yBytes = ByteArray(yBuffer.remaining())
+                yBuffer.get(yBytes)
 
-            val width = imageProxy.width
-            val height = imageProxy.height
-            val rowStride = yPlane.rowStride
+                val width = imageProxy.width
+                val height = imageProxy.height
+                val rowStride = yPlane.rowStride
 
-            val source = PlanarYUVLuminanceSource(
-                yBytes, rowStride, height,
-                0, 0, width, height, false
-            )
-            val binaryBmp = BinaryBitmap(HybridBinarizer(source))
+                val source = PlanarYUVLuminanceSource(
+                    yBytes, rowStride, height,
+                    0, 0, width, height, false
+                )
+                val binaryBmp = BinaryBitmap(HybridBinarizer(source))
 
-            try {
-                val result = qrReader.decode(binaryBmp)
-                val text = result?.text
-                if (!text.isNullOrEmpty()) {
-                    if (isHandled.compareAndSet(false, true)) {
-                        runOnUiThread {
-                            handleDecodedQrText(text)
+                try {
+                    val result = qrReader.decode(binaryBmp)
+                    val text = result?.text
+                    if (!text.isNullOrEmpty()) {
+                        if (isHandled.compareAndSet(false, true)) {
+                            runOnUiThread {
+                                handleDecodedQrText(text)
+                            }
                         }
                     }
+                } catch (_: Exception) {
+                    // No QR code in frame
+                } finally {
+                    qrReader.reset()
                 }
-            } catch (_: Exception) {
-                // No QR code in frame
-            } finally {
-                qrReader.reset()
             }
+        } finally {
+            imageProxy.close()
         }
-        imageProxy.close()
     }
 
     private fun handleDecodedQrText(text: String) {

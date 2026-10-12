@@ -27,7 +27,8 @@ class MessageAdapter(
     private val onReplyClick: ((FeedMessage) -> Unit)? = null,
     private val onUserTrustClick: ((FeedMessage) -> Unit)? = null,
     private val onAcceptFriendClick: ((FeedMessage) -> Unit)? = null,
-    private val onRejectFriendClick: ((FeedMessage) -> Unit)? = null
+    private val onRejectFriendClick: ((FeedMessage) -> Unit)? = null,
+    private val onLocationClick: ((Double, Double, String) -> Unit)? = null
 ) : RecyclerView.Adapter<MessageAdapter.MessageViewHolder>() {
 
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -207,16 +208,24 @@ class MessageAdapter(
             if (locMatch != null) {
                 layoutLocationAttachment.visibility = View.VISIBLE
                 val rawCoords = locMatch.groupValues[1]
+                val parsedCoords = network.disaster.management.system.GpsBeaconHelper.parseBeaconCoordinates("LOC:$rawCoords")
                 if (msg.isEmergency || msg.type == MessageType.EMERGENCY) {
-                    tvLocationCoords.text = "🚨 MANDATORY DISTRESS LOCATION: [LOC:$rawCoords]"
+                    tvLocationCoords.text = "🚨 MANDATORY DISTRESS LOCATION: [LOC:$rawCoords]\n👉 Tap to view on Tactical Map"
                     tvLocationCoords.setTextColor(0xFFFECACA.toInt()) // Red-100
                     layoutLocationAttachment.setBackgroundColor(0xFF451A1A.toInt()) // Dark Red
                     ivLocationIcon.setColorFilter(0xFFEF4444.toInt())
                 } else {
-                    tvLocationCoords.text = "📍 VOLUNTARY LOCATION ATTACHMENT: [LOC:$rawCoords]"
+                    tvLocationCoords.text = "📍 VOLUNTARY LOCATION ATTACHMENT: [LOC:$rawCoords]\n👉 Tap to view on Tactical Map"
                     tvLocationCoords.setTextColor(0xFFBAE6FD.toInt()) // Sky-200
                     layoutLocationAttachment.setBackgroundColor(0xFF0C2436.toInt()) // Dark Sky
                     ivLocationIcon.setColorFilter(0xFF38BDF8.toInt())
+                }
+                layoutLocationAttachment.isClickable = true
+                layoutLocationAttachment.isFocusable = true
+                layoutLocationAttachment.setOnClickListener {
+                    if (parsedCoords != null) {
+                        onLocationClick?.invoke(parsedCoords.first, parsedCoords.second, msg.senderName)
+                    }
                 }
             } else {
                 layoutLocationAttachment.visibility = View.GONE

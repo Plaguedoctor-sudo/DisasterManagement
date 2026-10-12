@@ -451,10 +451,17 @@ class BleMeshSupervisor(
         }
     }
 
+    private fun buildScanFilters(): List<ScanFilter> {
+        return listOf(
+            ScanFilter.Builder().setServiceUuid(ParcelUuid(MESH_SERVICE_UUID)).build()
+        )
+    }
+
     @SuppressLint("MissingPermission")
     private fun startDutyCycledScanning() {
         scanJob?.cancel()
         scanJob = scope.launch {
+            val filters = buildScanFilters()
             while (isActive && isRunning) {
                 try {
                     val sc = scanner ?: bluetoothAdapter?.bluetoothLeScanner
@@ -464,8 +471,11 @@ class BleMeshSupervisor(
                             .setReportDelay(0)
                             .build()
 
-                        // Scan without hardware filter so OEM controllers (OnePlus, Samsung, Xiaomi) do not drop packets
-                        sc.startScan(null, settings, scanCallback)
+                        try {
+                            sc.startScan(filters, settings, scanCallback)
+                        } catch (_: Throwable) {
+                            sc.startScan(null, settings, scanCallback)
+                        }
                         delay(8000L) // 8s scan
                         try { sc.stopScan(scanCallback) } catch (_: Throwable) {}
                     }
@@ -486,7 +496,12 @@ class BleMeshSupervisor(
                         .setReportDelay(0)
                         .build()
 
-                    sc.startScan(null, settings, scanCallback)
+                    val filters = buildScanFilters()
+                    try {
+                        sc.startScan(filters, settings, scanCallback)
+                    } catch (_: Throwable) {
+                        sc.startScan(null, settings, scanCallback)
+                    }
                     delay(5000L)
                     try { sc.stopScan(scanCallback) } catch (_: Throwable) {}
                 }

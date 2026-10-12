@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import network.disaster.management.MainActivity
 import network.disaster.management.R
 import network.disaster.management.crypto.EnvelopeFormat
 import network.disaster.management.crypto.HybridEngine
@@ -120,9 +121,20 @@ class GroupChatActivity : AppCompatActivity() {
             clearLocationAttachment()
         }
 
-        adapter = MessageAdapter(emptyList()) { msg ->
-            openAttachment(msg)
-        }
+        adapter = MessageAdapter(
+            messages = emptyList(),
+            onFileClick = { msg -> openAttachment(msg) },
+            shredder = shredder,
+            onLocationClick = { lat, lon, _ ->
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    putExtra("EXTRA_FOCUS_LAT", lat)
+                    putExtra("EXTRA_FOCUS_LON", lon)
+                }
+                startActivity(intent)
+                finish()
+            }
+        )
         val layoutManager = LinearLayoutManager(this)
         layoutManager.stackFromEnd = true
         rvMessages.layoutManager = layoutManager
@@ -337,57 +349,81 @@ class GroupChatActivity : AppCompatActivity() {
             )
             shredder.insertMessage(msg)
 
-            // Encapsulate into 4KB invariant packet and route through TriPoolRouter (Pool A for emergency, Pool B for text)
-            try {
-                val json = org.json.JSONObject().apply {
-                    put("id", msgId)
-                    put("groupId", groupId)
-                    put("senderName", senderId)
-                    put("content", finalText)
-                    put("type", if (isEmergency) MessageType.EMERGENCY.name else MessageType.TEXT.name)
-                    put("timestamp", now)
-                    put("isEmergency", isEmergency)
-                }.toString()
-                val inputBytes = json.toByteArray(Charsets.UTF_8)
-                val groupKey = currentGroup?.secretKey ?: ByteArray(32) { 0x01 }
-                val nonce = ByteArray(12).also { secureRandom.nextBytes(it) }
-                val aad = "DISASTER-MESH-V1".toByteArray(Charsets.UTF_8)
-                val (ciphertext, macTag) = hybridEngine.encryptPayloadTier1(groupKey, nonce, aad, inputBytes)
-
-                val bundleId = ByteArray(32).also { secureRandom.nextBytes(it) }
-                val x25519PubBytes = ByteArray(32).also { secureRandom.nextBytes(it) }
-
-                val batteryMgr = network.disaster.management.system.OemBatteryManager(this@GroupChatActivity)
-                val diff = batteryMgr.getOptimalPoWDifficulty(isEmergency)
-
-                val envelope = EnvelopeFormat.Tier1Envelope(
-                    hopLimit = if (isEmergency) 15.toByte() else 7.toByte(),
-                    creationEpoch = now,
-                    ttlExpiry = now + (if (isEmergency) 72 * 3600 * 1000L else 24 * 3600 * 1000L),
-                    powDifficulty = diff,
-                    powNonce = 0,
-                    bundleId = bundleId,
-                    rollingRecipientTag = localRecipientTag,
-                    ephemeralX25519Pub = x25519PubBytes,
-                    mlKemCiphertext = ByteArray(1088),
-                    nonce = nonce,
-                    bucketLength = ciphertext.size,
-                    encryptedBody = ciphertext,
-                    macTag = macTag,
-                    flags = if (isEmergency) (EnvelopeFormat.FLAG_ENCRYPTED.toInt() or EnvelopeFormat.FLAG_EMERGENCY.toInt()).toByte() else EnvelopeFormat.FLAG_ENCRYPTED
-                )
-                val rawSerialized = EnvelopeFormat.serializeTier1(envelope)
-                val solvedNonce = EnvelopeFormat.solvePoW(rawSerialized, envelope.powDifficulty)
-                envelope.powNonce = solvedNonce
-                val finalPacket = EnvelopeFormat.serializeTier1(envelope)
-                router.processIngressPacket(finalPacket)
-                network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(finalPacket)
-            } catch (_: Exception) {}
+            broadcastGroupEnvelope(
+                msgId = msgId,
+                senderId = senderId,
+                content = finalText,
+                type = if (isEmergency) MessageType.EMERGENCY else MessageType.TEXT,
+                isEmergency = isEmergency
+            )
 
             withContext(Dispatchers.Main) {
                 loadMessages()
             }
         }
+    }
+
+    private suspend fun broadcastGroupEnvelope(
+        msgId: String,
+        senderId: String,
+        content: String,
+        type: MessageType,
+        fileName: String? = null,
+        fileSize: Long? = null,
+        mimeType: String? = null,
+        fileId: String? = null,
+        isEmergency: Boolean = false
+    ) {
+        try {
+            val now = System.currentTimeMillis()
+            val json = org.json.JSONObject().apply {
+                put("id", msgId)
+                put("groupId", groupId)
+                put("senderName", senderId)
+                put("content", content)
+                put("type", type.name)
+                put("timestamp", now)
+                put("isEmergency", isEmergency)
+                if (!fileName.isNullOrEmpty()) put("fileName", fileName)
+                if (fileSize != null && fileSize > 0) put("fileSize", fileSize)
+                if (!mimeType.isNullOrEmpty()) put("mimeType", mimeType)
+                if (!fileId.isNullOrEmpty()) put("fileId", fileId)
+            }.toString()
+            val inputBytes = json.toByteArray(Charsets.UTF_8)
+            val groupKey = currentGroup?.secretKey ?: ByteArray(32) { 0x01 }
+            val nonce = ByteArray(12).also { secureRandom.nextBytes(it) }
+            val aad = "DISASTER-MESH-V1".toByteArray(Charsets.UTF_8)
+            val (ciphertext, macTag) = hybridEngine.encryptPayloadTier1(groupKey, nonce, aad, inputBytes)
+
+            val bundleId = ByteArray(32).also { secureRandom.nextBytes(it) }
+            val x25519PubBytes = ByteArray(32).also { secureRandom.nextBytes(it) }
+
+            val batteryMgr = network.disaster.management.system.OemBatteryManager(this@GroupChatActivity)
+            val diff = batteryMgr.getOptimalPoWDifficulty(isEmergency)
+
+            val envelope = EnvelopeFormat.Tier1Envelope(
+                hopLimit = if (isEmergency) 15.toByte() else 7.toByte(),
+                creationEpoch = now,
+                ttlExpiry = now + (if (isEmergency) 72 * 3600 * 1000L else 24 * 3600 * 1000L),
+                powDifficulty = diff,
+                powNonce = 0,
+                bundleId = bundleId,
+                rollingRecipientTag = localRecipientTag,
+                ephemeralX25519Pub = x25519PubBytes,
+                mlKemCiphertext = ByteArray(1088),
+                nonce = nonce,
+                bucketLength = ciphertext.size,
+                encryptedBody = ciphertext,
+                macTag = macTag,
+                flags = if (isEmergency) (EnvelopeFormat.FLAG_ENCRYPTED.toInt() or EnvelopeFormat.FLAG_EMERGENCY.toInt()).toByte() else EnvelopeFormat.FLAG_ENCRYPTED
+            )
+            val rawSerialized = EnvelopeFormat.serializeTier1(envelope)
+            val solvedNonce = EnvelopeFormat.solvePoW(rawSerialized, envelope.powDifficulty)
+            envelope.powNonce = solvedNonce
+            val finalPacket = EnvelopeFormat.serializeTier1(envelope)
+            router.processIngressPacket(finalPacket)
+            network.disaster.management.transport.ResilientTransportSupervisor.broadcastEverywhere(finalPacket)
+        } catch (_: Exception) {}
     }
 
     private fun handleMediaAttachment(uri: Uri) {
@@ -431,9 +467,20 @@ class GroupChatActivity : AppCompatActivity() {
                     mimeType = manifest.mimeType,
                     localFilePath = localFile.absolutePath,
                     timestamp = System.currentTimeMillis(),
-                    isEmergency = false
+                    isEmergency = false,
+                    fileId = manifest.fileId
                 )
                 shredder.insertMessage(msg)
+                broadcastGroupEnvelope(
+                    msgId = msg.id,
+                    senderId = senderId,
+                    content = msg.content,
+                    type = type,
+                    fileName = manifest.fileName,
+                    fileSize = manifest.fileSize,
+                    mimeType = manifest.mimeType,
+                    fileId = manifest.fileId
+                )
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
@@ -461,9 +508,27 @@ class GroupChatActivity : AppCompatActivity() {
             msg.fileName?.let { File(File(filesDir, "mesh_media"), it) },
             msg.fileName?.let { File(File(filesDir, "received_media"), it) }
         )
-        val file = candidates.firstOrNull { it.exists() }
+        var file = candidates.firstOrNull { it.exists() && it.length() > 0 }
+        if (file == null && !msg.fileName.isNullOrEmpty()) {
+            val safeName = msg.fileName
+            val fileId = msg.fileId ?: UUID.nameUUIDFromBytes(safeName.toByteArray(Charsets.UTF_8)).toString().replace("-", "").take(16)
+            val chunkCount = shredder.getReceivedChunkCount(fileId)
+            val totalNeeded = if (msg.fileSize > 0) {
+                ((msg.fileSize + 3999) / 4000).toInt().coerceAtLeast(1)
+            } else {
+                chunkCount
+            }
+            if (chunkCount > 0 && chunkCount >= totalNeeded) {
+                val outDir = File(filesDir, "received_media").apply { mkdirs() }
+                val targetFile = File(outDir, safeName)
+                val success = shredder.reassembleFile(fileId, totalNeeded, targetFile)
+                if (success && targetFile.exists() && targetFile.length() > 0) {
+                    file = targetFile
+                }
+            }
+        }
         if (file == null) {
-            Toast.makeText(this, "File not yet reassembled or missing from local storage", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "File chunks still arriving or missing: ${msg.fileName}", Toast.LENGTH_SHORT).show()
             return
         }
         android.util.Log.i("OpenAttachment", "Found file at: ${file.absolutePath}, size=${file.length()}")
@@ -585,9 +650,20 @@ class GroupChatActivity : AppCompatActivity() {
                     mimeType = "audio/mp4",
                     localFilePath = file.absolutePath,
                     timestamp = System.currentTimeMillis(),
-                    isEmergency = false
+                    isEmergency = false,
+                    fileId = manifest.fileId
                 )
                 shredder.insertMessage(msg)
+                broadcastGroupEnvelope(
+                    msgId = msg.id,
+                    senderId = senderId,
+                    content = msg.content,
+                    type = MessageType.FILE,
+                    fileName = manifest.fileName,
+                    fileSize = manifest.fileSize,
+                    mimeType = "audio/mp4",
+                    fileId = manifest.fileId
+                )
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@GroupChatActivity, "Voice memo sent (${packages.size} chunks) to Pool C", Toast.LENGTH_SHORT).show()

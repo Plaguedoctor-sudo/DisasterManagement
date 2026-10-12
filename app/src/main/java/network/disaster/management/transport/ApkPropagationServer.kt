@@ -6,6 +6,9 @@ import android.graphics.Color
 import android.util.Log
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import network.disaster.management.crypto.CredentialSecurityPolicy
+import network.disaster.management.security.CitadelDefenseManager
+import network.disaster.management.security.NetworkQuarantineManager
 import java.io.*
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -15,15 +18,12 @@ import kotlin.concurrent.thread
 
 /**
  * ApkPropagationServer: Zero-Infrastructure Offline Viral App Sideloading Engine.
- *
- * In disaster zones where cellular towers and Google Play are destroyed, survivors
- * cannot communicate until they have the DisasterManagement app.
- *
- * This server runs an ultra-light embedded HTTP daemon (port 8080) on the Android device:
- * 1. Serves an emergency captive portal page over Wi-Fi Hotspot / Wi-Fi Direct.
- * 2. Streams the running application's own signed APK (`applicationInfo.sourceDir`) directly
- *    to any non-app survivor's standard web browser (Chrome/Samsung/Safari/Firefox).
- * 3. Provides dynamic QR code generation pointing to http://<IP>:8080/download for camera scan sideloading.
+ * Hardened with High-Assurance Security Blueprint Measures:
+ * 1. Direct Socket Resolution & Anti-Spoofing (CWE-290 Immunity / Blueprint Section 2).
+ * 2. Active Deception Honeypots & Automated 24-Hour Quarantine (Blueprint Section 9).
+ * 3. Military-STIG Content Security Policy & Protective HTTP Headers (Blueprint Section 10).
+ * 4. Dual-Keyed Rate Limiting (Blueprint Section 5).
+ * 5. Citadel Defense Mode (DEFCON 1 Enclave Isolation / Blueprint Section 14.E).
  */
 class ApkPropagationServer(private val context: Context) {
 
@@ -31,10 +31,27 @@ class ApkPropagationServer(private val context: Context) {
         private const val TAG = "ApkPropagationServer"
         const val SERVER_PORT = 8080
         @Volatile var shared: ApkPropagationServer? = null
+
+        /**
+         * STIG-Compliant Security Response Headers (Blueprint Section 10).
+         */
+        val STIG_SECURITY_HEADERS = """
+            X-DNS-Prefetch-Control: on
+            Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+            X-Frame-Options: DENY
+            X-Content-Type-Options: nosniff
+            X-XSS-Protection: 1; mode=block
+            Referrer-Policy: strict-origin-when-cross-origin
+            Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+            Cross-Origin-Opener-Policy: same-origin
+            Cross-Origin-Resource-Policy: same-origin
+            Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';
+        """.trimIndent().lines().joinToString("\r\n") { it.trim() } + "\r\n"
     }
 
     private var serverSocket: ServerSocket? = null
     private var isRunning = false
+    private val rateLimiter = MeshRateLimiter(peerLimitPerSec = 15, channelLimitPerSec = 50)
 
     fun start() {
         if (isRunning) return
@@ -72,22 +89,68 @@ class ApkPropagationServer(private val context: Context) {
     private fun handleClient(socket: Socket) {
         try {
             socket.soTimeout = 10000
+
+            // 1. Direct Socket Resolution (CWE-290 Immunity / Blueprint Section 2.1)
+            // Authoritative remote IP directly from physical TCP socket, ignoring forged headers.
+            val rawIp = socket.inetAddress?.hostAddress ?: "127.0.0.1"
+            val verifiedRemoteIp = rawIp.replace("^/+".toRegex(), "").replace("::ffff:", "").trim()
+
             val input = BufferedReader(InputStreamReader(socket.getInputStream()))
             val output = socket.getOutputStream()
 
             val requestLine = input.readLine() ?: return
             val parts = requestLine.split(" ")
             if (parts.size < 2) return
-            val path = parts[1]
+            val rawPath = parts[1]
 
-            // Drain headers
+            // 2. Ingress Header Sanitization (Blueprint Section 2.2)
+            // Read headers to prevent pipe clogging, explicitly ignoring user-supplied X-Forwarded-For / Host bypasses
             var line: String?
             while (true) {
                 line = input.readLine()
                 if (line.isNullOrEmpty()) break
             }
 
-            if (path == "/download" || path.startsWith("/download?")) {
+            // 3. Citadel Defense Mode Lockdown (Blueprint Section 14.E)
+            if (!CitadelDefenseManager.isIngressPermitted(verifiedRemoteIp)) {
+                sendHttpError(output, 503, "DEFCON 1 Citadel Lockdown: Remote Ingress Disabled")
+                return
+            }
+
+            // 4. Automated Network Quarantine Check (Blueprint Section 9.2)
+            if (NetworkQuarantineManager.isQuarantined(verifiedRemoteIp)) {
+                sendHttpError(output, 403, "Forbidden: Host Quarantined under Anti-Reconnaissance Policy")
+                return
+            }
+
+            // 5. Active Deception Honeypot Trap Detection (Blueprint Section 9.1)
+            if (NetworkQuarantineManager.isCanaryPath(rawPath)) {
+                NetworkQuarantineManager.quarantineIp(
+                    verifiedRemoteIp,
+                    "Reconnaissance probe detected hitting honeypot path: $rawPath"
+                )
+                sendHttpError(output, 403, "Access Denied: Security Containment Engaged")
+                return
+            }
+
+            // 5b. Inline Threat IDS Inspection (Blueprint Section 2.2 & Step 1)
+            val threatCheck = network.disaster.management.security.ActiveAdversaryDefense.inspectPayload(rawPath)
+            if (threatCheck.isThreat) {
+                NetworkQuarantineManager.quarantineIp(
+                    verifiedRemoteIp,
+                    "Heuristic signature blocked (${threatCheck.threatCategory}): ${threatCheck.details}"
+                )
+                network.disaster.management.security.ActiveAdversaryDefense.handleAttackerTarpit(output, maxChunks = 4, delayMs = 250L)
+                return
+            }
+
+            // 6. Dual-Keyed Anti-Botnet Rate Limiting (Blueprint Section 5)
+            if (!rateLimiter.allowPacket(verifiedRemoteIp, "HTTP_SIDELOAD")) {
+                sendHttpError(output, 429, "Too Many Requests: Rate Limit Exceeded")
+                return
+            }
+
+            if (rawPath == "/download" || rawPath.startsWith("/download?")) {
                 serveApkDownload(output)
             } else {
                 servePortalHtml(output)
@@ -97,6 +160,26 @@ class ApkPropagationServer(private val context: Context) {
         } finally {
             try { socket.close() } catch (_: Exception) {}
         }
+    }
+
+    private fun sendHttpError(output: OutputStream, statusCode: Int, message: String) {
+        val body = """
+            <!DOCTYPE html>
+            <html><head><title>$statusCode $message</title></head>
+            <body style="background:#0B1120;color:#FCA5A5;font-family:sans-serif;padding:40px;text-align:center;">
+              <h2>🚨 SECURITY ENFORCEMENT ($statusCode)</h2>
+              <p>$message</p>
+            </body></html>
+        """.trimIndent()
+        val bytes = body.toByteArray(Charsets.UTF_8)
+        val headers = "HTTP/1.1 $statusCode $message\r\n" +
+                "Content-Type: text/html; charset=utf-8\r\n" +
+                "Content-Length: ${bytes.size}\r\n" +
+                STIG_SECURITY_HEADERS +
+                "Connection: close\r\n\r\n"
+        output.write(headers.toByteArray(Charsets.US_ASCII))
+        output.write(bytes)
+        output.flush()
     }
 
     private fun servePortalHtml(output: OutputStream) {
@@ -150,6 +233,7 @@ class ApkPropagationServer(private val context: Context) {
         val headers = "HTTP/1.1 200 OK\r\n" +
                 "Content-Type: text/html; charset=utf-8\r\n" +
                 "Content-Length: ${bytes.size}\r\n" +
+                STIG_SECURITY_HEADERS +
                 "Connection: close\r\n\r\n"
 
         output.write(headers.toByteArray(Charsets.US_ASCII))
@@ -171,6 +255,7 @@ class ApkPropagationServer(private val context: Context) {
                 "Content-Type: application/vnd.android.package-archive\r\n" +
                 "Content-Disposition: attachment; filename=\"DisasterManagement.apk\"\r\n" +
                 "Content-Length: $fileLength\r\n" +
+                STIG_SECURITY_HEADERS +
                 "Connection: close\r\n\r\n"
 
         output.write(headers.toByteArray(Charsets.US_ASCII))
@@ -188,24 +273,41 @@ class ApkPropagationServer(private val context: Context) {
 
     fun getLocalIpAddress(): String {
         try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            while (interfaces.hasMoreElements()) {
-                val iface = interfaces.nextElement()
+            val interfaces = NetworkInterface.getNetworkInterfaces()?.toList() ?: emptyList()
+            // First priority: active Wi-Fi AP or Wi-Fi Direct interface (ap0, wlan0, p2p, swlan)
+            for (iface in interfaces) {
                 if (iface.isLoopback || !iface.isUp) continue
-                val addrs = iface.inetAddresses
-                while (addrs.hasMoreElements()) {
-                    val addr = addrs.nextElement()
-                    if (addr is Inet4Address && !addr.isLoopbackAddress) {
-                        return addr.hostAddress ?: "127.0.0.1"
+                val name = iface.name.lowercase()
+                if (name.contains("ap") || name.contains("p2p") || name.contains("wlan") || name.contains("hotspot") || name.contains("rndis")) {
+                    for (addr in iface.inetAddresses) {
+                        if (addr is Inet4Address && !addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
+                            val ip = addr.hostAddress
+                            if (!ip.isNullOrEmpty() && ip != "127.0.0.1") {
+                                return ip
+                            }
+                        }
+                    }
+                }
+            }
+            // Second priority: any other non-loopback active IPv4 address
+            for (iface in interfaces) {
+                if (iface.isLoopback || !iface.isUp) continue
+                for (addr in iface.inetAddresses) {
+                    if (addr is Inet4Address && !addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
+                        val ip = addr.hostAddress
+                        if (!ip.isNullOrEmpty() && ip != "127.0.0.1") {
+                            return ip
+                        }
                     }
                 }
             }
         } catch (_: Exception) {}
-        return "192.168.43.1" // Standard Android Wi-Fi Hotspot Gateway IP
+        return "192.168.43.1" // Standard Android Wi-Fi Hotspot Gateway IP default
     }
 
     fun getPortalUrl(): String {
-        return "http://${getLocalIpAddress()}:$SERVER_PORT"
+        val port = serverSocket?.localPort ?: SERVER_PORT
+        return "http://${getLocalIpAddress()}:$port"
     }
 
     fun generatePortalQr(size: Int = 512): Bitmap? {
