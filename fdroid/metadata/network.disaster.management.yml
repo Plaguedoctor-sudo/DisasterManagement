@@ -40,6 +40,7 @@ Builds:
     subdir: app
     gradle:
       - yes
+    ndk: r26b
 
 ArchivePolicy: 3 versions
 AutoUpdateMode: Version v%v
