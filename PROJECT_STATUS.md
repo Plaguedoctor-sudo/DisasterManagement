@@ -101,6 +101,12 @@
 - [x] **Signed Release Build Pipeline:** Configured reproducible release signing with Android Keystore V1, V2, and V3 signatures.
 - [ ] **Emergency Sideloading via Optical QR:** Create a high-density LT Fountain installer script to beam minimal APK bootstrap blobs across air-gapped camera feeds.
 
+### Priority 5: Strictly Local On-Device AI & Air-Gap Enforcer
+- [x] **100% On-Device Tactical Emergency Advisor (`OnDeviceTacticalAdvisor.kt`):** Zero cloud calls, zero external network dependency, and zero remote telemetry. Executes deterministic trauma triage (START/SALT protocols), instant military SITREP compilation, and extensive offline emergency medical and disaster survival manuals (hemorrhage control, water purification, entrapment tapping, burns, smoke inhalation, hypothermia, fractures) completely in local device RAM.
+- [x] **Local Air-Gap Attestation Manager (`LocalAirGapManager.kt`):** Proves and audits strict air-gap compliance. Verifies zero outbound WAN exfiltration, hardware KeyStore cryptographic security, and SQLCipher AES-256 local-only database persistence.
+- [x] **Offline Tactical Geo-Intelligence:** Pure mathematical on-device WGS-84 Haversine distance, compass bearing, and civil defense sector grid encoding (`GRID-DK-47-82`) without external tile or geocoding servers.
+- [x] **Glove-Friendly Tactical AI Dashboard:** Interactive UI tab with rapid triage macros, survival field chips, copyable directives, and 1-tap local peer mesh broadcasting.
+
 ---
 
 ## 4. Hardware Verification Summary

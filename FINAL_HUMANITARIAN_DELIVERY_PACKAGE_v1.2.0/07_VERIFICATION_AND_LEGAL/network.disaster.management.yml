@@ -1,0 +1,49 @@
+Categories:
+  - Security
+  - Connectivity
+  - Navigation
+License: Apache-2.0
+SourceCode: https://github.com/Plaguedoctor-sudo/DisasterManagement
+IssueTracker: https://github.com/Plaguedoctor-sudo/DisasterManagement/issues
+Changelog: https://github.com/Plaguedoctor-sudo/DisasterManagement/releases
+
+AutoName: DisasterManagement
+Summary: Zero-Infrastructure Off-Grid Civil Defense & Tactical Mesh Communications
+Description: |-
+  DisasterManagement transforms consumer smartphones into autonomous, post-collapse
+  civilian transceivers capable of coordinating disaster survival without cellular
+  towers, internet backhauls, or satellite relays.
+
+  Key Features:
+  * Hybrid P2P Mesh: Simultaneous dual-duplex Bluetooth Low Energy (L2CAP CoC / GATT)
+    and Wi-Fi Direct (54+ Mbps) peer-to-peer relaying.
+  * Near-Ultrasound Acoustic Modem: Fast 4FSK acoustic burst modulation (18.5kHz - 19.5kHz)
+    for physical near-field life-safety alerts.
+  * High-Stress Emergency Action Console: Prominent crimson distress button, sweeping
+    1000Hz–2400Hz rubble penetration siren, and international Morse code optical SOS strobe.
+  * Rapid Civilian Triage: 1-tap dispatch for SAFE, TRAPPED, SUPPLIES, and DANGER alerts
+    with automatic GPS fix attachment.
+  * Tactical GIS HUD: Completely offline vector grid rendering with active radius filtering.
+  * Family & Team Safety Roll Call: Aggregated real-time roll call check-ins.
+  * Post-Quantum Crypto: Dual-layer hybrid encryption (X25519 + Kyber/ML-KEM-768)
+    with forward secrecy and low-wear cryptographic shredding.
+  * Zero-Infrastructure App Sideloading: Built-in local HTTP propagation server allowing
+    survivors to connect to a Wi-Fi hotspot and sideload the app instantly without internet.
+
+RepoType: git
+Repo: https://github.com/Plaguedoctor-sudo/DisasterManagement.git
+
+Builds:
+  - versionName: 1.2.0
+    versionCode: 3
+    commit: v1.2.0
+    subdir: app
+    gradle:
+      - yes
+    ndk: r26b
+
+ArchivePolicy: 3 versions
+AutoUpdateMode: Version v%v
+UpdateCheckMode: Tags
+CurrentVersion: 1.2.0
+CurrentVersionCode: 3

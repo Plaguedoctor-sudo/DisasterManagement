@@ -2,6 +2,7 @@
 *.apk
 *.aab
 *.ap_
+*.zip
 
 # Signing Keystores & Credentials
 keystore/

@@ -1,0 +1,52 @@
+================================================================================
+GID IJANS AK ENSTALASYON - DISASTER MANAGEMENT APP (KREYOL AYISYEN)
+================================================================================
+Platfòm: Android 10 ak plis
+Fonksyone 100% san entènèt, san kat SIM, epi san rezo selilè.
+
+--------------------------------------------------------------------------------
+1. KI JAN POU W ENSTALE L (SAN ENTÈNÈT)
+--------------------------------------------------------------------------------
+1. Chèche fichye: DisasterManagement-v1.2.0-signed.apk
+2. Klike sou li pou kòmanse enstalasyon an.
+3. Si Android di w "Install unknown apps":
+   - Ale nan "Paramèt" (Settings)
+   - Limen "Pèmèt sous sa a" (Allow from this source)
+   - Fè bak epi klike sou "Enstale" (Install)
+4. Aplikasyon an ap parèt sou ekran telefòn ou (ikòn boukliye vèt/gri).
+
+--------------------------------------------------------------------------------
+2. PATAJE AK LÒT MOUN SAN ENTÈNÈT
+--------------------------------------------------------------------------------
+Metòd A:
+1. Louvri aplikasyon an sou telefòn ou.
+2. Peze "Share App Offline" nan meni an.
+3. Telefòn ou ap louvri yon Wi-Fi ak yon kòd QR.
+4. Lòt moun nan konekte sou Wi-Fi ou a epi l eskane kòd QR la pou telechaje l dirèkteman!
+
+Metòd B:
+Pataje fichye APK a dirèkteman pa Bluetooth oswa ak yon kle USB OTG / Kat MicroSD.
+
+--------------------------------------------------------------------------------
+3. BOUTON IJANS TAKTIK YO
+--------------------------------------------------------------------------------
+[VÈT]   MWEN AN SEKIRITE (I AM SAFE):
+        Voye yon mesaj bay fanmi w ak sekouris yo pou di w pa gen anyen.
+
+[WOUJ]  MWEN BARE / MWEN BEZWEN ÈD (TRAPPED / AID):
+        Alèt SOS ijan + voye son ultrasonik 18.5 kHz pou ede sekouris jwenn ou anba dekonb.
+
+[JÒN]   MWEN BEZWEN PWOVIZYON (NEED SUPPLIES):
+        Mande Dlo pwòp, Manje, Medikaman, Abri, oswa Kouran pou chaje telefòn.
+
+[DANJE] SIYALE DANJE (REPORT DANGER):
+        Avèti moun sou fil kouran atè, dife, gaz k ap koule, oswa zòn danjere.
+
+[TÈTMÒ] EFASE TOUT BAGAY (PANIC PURGE):
+        DETWI TOUT KLE CHIFREMAN AK MESAJ YO IMEDYATMAN!
+        Sèvi ak bouton sa a si moun ame vle pran telefòn ou pou kontwole w!
+
+--------------------------------------------------------------------------------
+KÒD VEFYIKASYON (SHA-256):
+a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+================================================================================

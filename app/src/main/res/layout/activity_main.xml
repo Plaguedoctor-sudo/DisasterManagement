@@ -1333,6 +1333,368 @@
             </LinearLayout>
         </ScrollView>
 
+        <!-- TAB 5: ON-DEVICE TACTICAL AI & AIR-GAP ADVISOR -->
+        <ScrollView
+            android:id="@+id/layoutTabCloud"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Air-Gap Status Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="#161616"
+                    app:strokeColor="#059669"
+                    app:strokeWidth="1dp"
+                    app:cardCornerRadius="8dp"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="6dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="🛡️ STRICT ON-DEVICE AIR-GAP"
+                                android:textColor="#34D399"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvCloudUplinkBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="100% AIR-GAPPED"
+                                android:background="#064E3B"
+                                android:textColor="#A7F3D0"
+                                android:textSize="10sp"
+                                android:textStyle="bold"
+                                android:paddingHorizontal="8dp"
+                                android:paddingVertical="3dp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvCloudProjectInfo"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Environment: Strictly Local • Zero WAN / Cloud Egress Enforced"
+                            android:textColor="#94A3B8"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/tvCloudSyncStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="All distress triage, survival intelligence, and vaults execute 100% locally."
+                            android:textColor="#00FF66"
+                            android:textSize="11sp"
+                            android:layout_marginTop="2dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <Button
+                            android:id="@+id/btnAuditAirGap"
+                            android:layout_width="match_parent"
+                            android:layout_height="38dp"
+                            android:text="🔒 AUDIT AIR-GAP INTEGRITY"
+                            android:backgroundTint="#065F46"
+                            android:textColor="#ECFDF5"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="6dp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- On-Device AI Tactical Advisor Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="#161616"
+                    app:strokeColor="#7C3AED"
+                    app:strokeWidth="1dp"
+                    app:cardCornerRadius="8dp"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🤖 ON-DEVICE TACTICAL EMERGENCY ADVISOR"
+                            android:textColor="#C084FC"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="100% On-Device Neural &amp; Heuristic Engine • Zero Network Latency."
+                            android:textColor="#94A3B8"
+                            android:textSize="11sp"
+                            android:layout_marginBottom="10dp" />
+
+                        <!-- Quick Action Chips -->
+                        <HorizontalScrollView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:scrollbars="none"
+                            android:layout_marginBottom="10dp">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <Button
+                                    android:id="@+id/chipTriageDistress"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="32dp"
+                                    android:text="🚨 Triage Distress"
+                                    android:backgroundTint="#7F1D1D"
+                                    android:textColor="#FCA5A5"
+                                    android:textSize="10sp"
+                                    android:layout_marginEnd="6dp"
+                                    android:paddingHorizontal="10dp"
+                                    app:cornerRadius="16dp" />
+
+                                <Button
+                                    android:id="@+id/chipGenerateSitrep"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="32dp"
+                                    android:text="📋 Generate SITREP"
+                                    android:backgroundTint="#312E81"
+                                    android:textColor="#C7D2FE"
+                                    android:textSize="10sp"
+                                    android:layout_marginEnd="6dp"
+                                    android:paddingHorizontal="10dp"
+                                    app:cornerRadius="16dp" />
+
+                                <Button
+                                    android:id="@+id/chipTraumaBleed"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="32dp"
+                                    android:text="🩹 Trauma / Bleeding"
+                                    android:backgroundTint="#831843"
+                                    android:textColor="#F472B6"
+                                    android:textSize="10sp"
+                                    android:layout_marginEnd="6dp"
+                                    android:paddingHorizontal="10dp"
+                                    app:cornerRadius="16dp" />
+
+                                <Button
+                                    android:id="@+id/chipWaterSafety"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="32dp"
+                                    android:text="💧 Water Safety"
+                                    android:backgroundTint="#0C4A6E"
+                                    android:textColor="#7DD3FC"
+                                    android:textSize="10sp"
+                                    android:layout_marginEnd="6dp"
+                                    android:paddingHorizontal="10dp"
+                                    app:cornerRadius="16dp" />
+
+                                <Button
+                                    android:id="@+id/chipCollapseHazard"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="32dp"
+                                    android:text="🏚️ Collapse Entrapment"
+                                    android:backgroundTint="#78350F"
+                                    android:textColor="#FCD34D"
+                                    android:textSize="10sp"
+                                    android:layout_marginEnd="6dp"
+                                    android:paddingHorizontal="10dp"
+                                    app:cornerRadius="16dp" />
+
+                                <Button
+                                    android:id="@+id/chipBurns"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="32dp"
+                                    android:text="🔥 Thermal Burns"
+                                    android:backgroundTint="#991B1B"
+                                    android:textColor="#FCA5A5"
+                                    android:textSize="10sp"
+                                    android:layout_marginEnd="6dp"
+                                    android:paddingHorizontal="10dp"
+                                    app:cornerRadius="16dp" />
+
+                                <Button
+                                    android:id="@+id/chipSmoke"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="32dp"
+                                    android:text="⚠️ Toxic Fumes"
+                                    android:backgroundTint="#854D0E"
+                                    android:textColor="#FEF08A"
+                                    android:textSize="10sp"
+                                    android:layout_marginEnd="6dp"
+                                    android:paddingHorizontal="10dp"
+                                    app:cornerRadius="16dp" />
+
+                                <Button
+                                    android:id="@+id/chipHypothermia"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="32dp"
+                                    android:text="❄️ Hypothermia / Shock"
+                                    android:backgroundTint="#1E3A8A"
+                                    android:textColor="#BFDBFE"
+                                    android:textSize="10sp"
+                                    android:paddingHorizontal="10dp"
+                                    app:cornerRadius="16dp" />
+                            </LinearLayout>
+                        </HorizontalScrollView>
+
+                        <!-- Input and Ask row -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="8dp">
+
+                            <EditText
+                                android:id="@+id/etGeminiPrompt"
+                                android:layout_width="0dp"
+                                android:layout_height="44dp"
+                                android:layout_weight="1"
+                                android:background="#202020"
+                                android:hint="Query on-device emergency advisor or injury..."
+                                android:textColor="#FFFFFF"
+                                android:textColorHint="#666666"
+                                android:textSize="12sp"
+                                android:paddingHorizontal="12dp"
+                                android:layout_marginEnd="8dp" />
+
+                            <Button
+                                android:id="@+id/btnAskGemini"
+                                android:layout_width="wrap_content"
+                                android:layout_height="44dp"
+                                android:text="⚡ QUERY"
+                                android:backgroundTint="#7C3AED"
+                                android:textColor="#FFFFFF"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                app:cornerRadius="6dp" />
+                        </LinearLayout>
+
+                        <!-- On-Device AI Response View -->
+                        <LinearLayout
+                            android:id="@+id/layoutGeminiResponse"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:background="#0A0A0A"
+                            android:padding="12dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/tvGeminiResponseText"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textColor="#E2E8F0"
+                                android:textSize="12sp"
+                                android:textIsSelectable="true"
+                                android:lineSpacingExtra="3dp"
+                                android:layout_marginBottom="10dp" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <Button
+                                    android:id="@+id/btnBroadcastAiToMesh"
+                                    android:layout_width="0dp"
+                                    android:layout_height="36dp"
+                                    android:layout_weight="1"
+                                    android:text="📢 BROADCAST TO LOCAL MESH"
+                                    android:backgroundTint="#059669"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="10sp"
+                                    android:textStyle="bold"
+                                    android:layout_marginEnd="6dp"
+                                    app:cornerRadius="6dp" />
+
+                                <Button
+                                    android:id="@+id/btnCopyAiResponse"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="36dp"
+                                    android:text="📋 COPY"
+                                    android:backgroundTint="#334155"
+                                    android:textColor="#CBD5E1"
+                                    android:textSize="10sp"
+                                    app:cornerRadius="6dp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Data Sovereignty & Storage Security Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="#161616"
+                    app:strokeColor="#3B82F6"
+                    app:strokeWidth="1dp"
+                    app:cardCornerRadius="8dp"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🔒 DATA SOVEREIGNTY &amp; SECURE LOCAL VAULT"
+                            android:textColor="#60A5FA"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="All communications and triage records remain in your encrypted SQLCipher database on this device. Ephemeral 32-byte keys are pinned in RAM via C11 mlock(). Zero cloud synchronization."
+                            android:textColor="#CBD5E1"
+                            android:textSize="11sp"
+                            android:lineSpacingExtra="2dp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Open Settings Shortcut -->
+                <Button
+                    android:id="@+id/btnOpenCloudSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="⚙️ VIEW AIR-GAP &amp; HARDWARE SECURITY AUDIT"
+                    android:backgroundTint="#1F2937"
+                    android:textColor="#9CA3AF"
+                    android:textSize="11sp" />
+
+            </LinearLayout>
+        </ScrollView>
+
     </FrameLayout>
 
 </LinearLayout>

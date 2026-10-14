@@ -1,0 +1,51 @@
+================================================================================
+MWONGOZO WA DHARURA NA USALAMA - DISASTER MANAGEMENT (KISWAHILI)
+================================================================================
+Mfumo: Android 10 au zaidi (API 29+)
+100% Nje ya Mtandao: Hakuna haja ya mtandao, salio, wala minara ya simu.
+
+--------------------------------------------------------------------------------
+1. JINSI YA KUWEKA KWENYE SIMU (BILA INTERNET)
+--------------------------------------------------------------------------------
+1. Tafuta faili: DisasterManagement-v1.2.0-signed.apk
+2. Bonyeza faili ili kuanza kuisakinisha.
+3. Simu ikikataa na kuomba ruhusa:
+   - Nenda "Settings" (Mipangilio)
+   - Washa "Allow from this source"
+   - Rudi nyuma na ubonyeze "Install"
+4. Nembo ya ngao ya kiusalama itaonekana kwenye skrini ya simu yako.
+
+--------------------------------------------------------------------------------
+2. KUWAGAWIA WENZAKO BILA INTANETI
+--------------------------------------------------------------------------------
+Njia A (Hotspot ya Ndani ya App):
+1. Ndani ya app, bonyeza "Share App Offline".
+2. Simu itawasha hotspot na kuonyesha QR Code kwenye skrini.
+3. Mwenzako ataunganisha Wi-Fi ya simu yako na kuskani QR Code kwa kamera ili kupakua APK papo hapo.
+
+Njia B:
+Tuma faili ya APK kupitia Bluetooth au flash ya USB OTG / Kadi ya MicroSD.
+
+--------------------------------------------------------------------------------
+3. VITUFE MUHIMU VYA DHARURA
+--------------------------------------------------------------------------------
+[KIJANI]  NIKO SALAMA (I AM SAFE):
+          Tuma taarifa kuwa uko salama pamoja na eneo ulipo kwa mtandao wa jirani.
+
+[NYEKUNDU] NIMEKWAMA / MSAADA (TRAPPED / AID):
+          Tangazo la dharura ya juu zaidi (SOS) + kutoa mlio maalum wa ultrasoniki wa 18.5 kHz kuongoza waokoaji kwenye vifusi.
+
+[DHAHABU] NAHITAJI MSAADA (NEED SUPPLIES):
+          Ombi la haraka la: Maji safi, Chakula, Dawa, Mahema, au Chaji ya simu.
+
+[ZAMBARAU] RIPOTI HATARI (REPORT DANGER):
+          Tahadhari juu ya nyaya za umeme zilizoanguka, kuvuja kwa gesi, moto, au mafuriko.
+
+[FUVU]    FUTA KILA KITU (PANIC PURGE):
+          FUTA MAFAILI NA NYENZO ZA SIRI MARA MOJA NA FUNGA APP!
+          Tumia kitufe hiki ikiwa simu yako inakaribia kuchunguzwa au kunyang'anywa kwa nguvu.
+
+--------------------------------------------------------------------------------
+NAMBA YA UHAKIKI WA USALAMA (SHA-256):
+a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+================================================================================

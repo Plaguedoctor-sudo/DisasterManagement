@@ -99,6 +99,11 @@ Flash storage is partitioned into non-starving quotas:
 * **Optical LT Fountain Transceiver:** Air-gapped visual data stream beaming animated Luby Transform QR droplets at 8 FPS, reconstructed via real-time CameraX peeling decoder.
 * **Opportunistic WAN Egress:** Fallback Base32 Port 53 DNS tunneling and domain fronting to escape captive portals.
 
+### 5. Strictly On-Device Tactical AI & Air-Gap Architecture
+* **100% On-Device AI Advisor (`OnDeviceTacticalAdvisor`):** Zero external internet connections, zero cloud dependencies, and zero remote telemetry. Executes deterministic trauma triage (START/SALT protocols), instant military SITREP compilation, and extensive offline emergency medical and disaster survival manuals (hemorrhage control, water purification, entrapment tapping, burns, smoke inhalation, hypothermia, fractures) completely in local device RAM.
+* **Strict Air-Gap Attestation (`LocalAirGapManager`):** Proves and audits strict air-gap compliance. Verifies zero outbound WAN exfiltration, hardware KeyStore cryptographic security, and SQLCipher AES-256 local-only database persistence.
+* **Local Peer-to-Peer Physical Radios Only:** All communications remain strictly local: Bluetooth Low Energy (L2CAP CoC), Wi-Fi Direct zero-network P2P, local Wi-Fi Hotspot LAN sockets, near-ultrasound acoustic chirps, and CameraX optical QR fountain.
+
 ---
 
 ## 🛠️ Glove-Friendly Tactical Incident Interface

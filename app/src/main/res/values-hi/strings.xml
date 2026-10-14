@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">आपदा प्रबंधन</string>
+    <string name="service_notification_title">नागरिक आपदा टेलीमेट्री सेवा</string>
+    <string name="service_notification_desc">सेंसर और स्थानीय मेश नेटवर्क सिग्नल की निगरानी कर रहा है।</string>
+</resources>

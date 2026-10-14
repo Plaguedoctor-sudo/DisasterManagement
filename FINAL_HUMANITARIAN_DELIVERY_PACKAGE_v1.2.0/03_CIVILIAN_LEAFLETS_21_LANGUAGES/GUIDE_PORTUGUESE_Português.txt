@@ -1,0 +1,54 @@
+================================================================================
+GUIA DE EMERGÊNCIA E INSTALAÇÃO - DISASTER MANAGEMENT (PORTUGUÊS)
+================================================================================
+Plataforma: Android 10 ou superior (API 29+)
+100% Fora da Rede: Sem necessidade de internet, sinal de celular ou conta Google.
+
+--------------------------------------------------------------------------------
+1. COMO INSTALAR (SEM INTERNET)
+--------------------------------------------------------------------------------
+1. Localize o arquivo: DisasterManagement-v1.2.0-signed.apk
+2. Toque no arquivo para iniciar a instalação.
+3. Se o Android exibir aviso de segurança:
+   - Toque em "Configurações" (Settings)
+   - Ative "Permitir desta fonte" (Allow from this source)
+   - Volte e toque em "Instalar" (Install)
+4. O ícone de escudo tático aparecerá na tela inicial do seu celular.
+
+--------------------------------------------------------------------------------
+2. COMPARTILHAMENTO OFFLINE VIRAL (SEM DADOS)
+--------------------------------------------------------------------------------
+Método A (Ponto de Acesso embutido):
+1. No aplicativo, toque em "Share App Offline".
+2. O aparelho criará uma rede Wi-Fi local e exibirá um Código QR.
+3. Qualquer outro celular conecta no Wi-Fi e aponta a câmera para baixar o APK na hora!
+
+Método B:
+Envie via Bluetooth, Quick Share ou através de pendrive USB OTG / Cartão MicroSD.
+
+--------------------------------------------------------------------------------
+3. BOTÕES TÁTICOS DE EMERGÊNCIA
+--------------------------------------------------------------------------------
+[VERDE]    ESTOU SEGURO (I AM SAFE):
+           Transmite confirmação de segurança e coordenadas aos aparelhos vizinhos.
+
+[VERMELHO] PRESO / SOCORRO (TRAPPED / AID):
+           Alerta SOS de máxima prioridade + emite sinal acústico ultrassônico de 18.5 kHz para guiar socorristas em escombros.
+
+[AMARELO]  PRECISO DE SUPRIMENTOS (NEED SUPPLIES):
+           Pedido rápido em 1 toque: Água potável, Alimentos, Remédios, Abrigo ou Energia.
+
+[ROXO]     RELATAR PERIGO (REPORT DANGER):
+           Avisa sobre fios caídos, vazamento de gás, incêndios, inundações ou desabamentos.
+
+[MICRO]    PUSH-TO-TALK:
+           Grave mensagens de voz seguras fatiadas em pacotes invioláveis de 4.096 bytes.
+
+[PERIGO]   PURGA DE PÂNICO (PANIC PURGE):
+           DESTRÓI TODAS AS CHAVES CRIPTOGRÁFICAS E APAGA A MEMÓRIA IMEDIATAMENTE.
+           Utilize caso seu telefone corra risco iminente de busca ou apreensão armada!
+
+--------------------------------------------------------------------------------
+CÓDIGO DE VERIFICAÇÃO (SHA-256):
+a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+================================================================================

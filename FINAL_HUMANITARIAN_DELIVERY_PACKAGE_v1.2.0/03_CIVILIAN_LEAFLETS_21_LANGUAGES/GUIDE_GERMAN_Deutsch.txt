@@ -1,0 +1,51 @@
+================================================================================
+NOTFALL- UND INSTALLATIONSHANDBUCH - DISASTER MANAGEMENT (DEUTSCH)
+================================================================================
+Plattform: Android 10 oder höher (API 29+)
+100% Autark: Funktioniert ohne Internet, ohne Mobilfunknetz und ohne Server.
+
+--------------------------------------------------------------------------------
+1. INSTALLATION OHNE INTERNET
+--------------------------------------------------------------------------------
+1. Datei öffnen: DisasterManagement-v1.2.0-signed.apk
+2. Tippen Sie auf die Datei, um die Installation zu starten.
+3. Falls Android eine Sicherheitswarnung anzeigt:
+   - "Einstellungen" antippen
+   - "Dieser Quelle vertrauen" (Allow from this source) aktivieren
+   - Zurückgehen und "Installieren" wählen
+4. Das Schild-Symbol erscheint auf Ihrem Startbildschirm.
+
+--------------------------------------------------------------------------------
+2. OFFLINE-WEITERGABE AN ANDERE GERÄTE
+--------------------------------------------------------------------------------
+Methode A (Integrierter Hotspot):
+1. In der App auf "Share App Offline" tippen.
+2. Ihr Smartphone startet einen lokalen Hotspot und zeigt einen QR-Code an.
+3. Andere Personen verbinden sich mit dem Hotspot und scannen den QR-Code mit der Kamera, um das APK direkt herunterzuladen.
+
+Methode B:
+Direktübertragung via Bluetooth, Quick Share oder USB-OTG-Stick / MicroSD.
+
+--------------------------------------------------------------------------------
+3. TAKTISCHE NOTFALL-TASTEN
+--------------------------------------------------------------------------------
+[GRÜN]  ICH BIN IN SICHERHEIT (I AM SAFE):
+        Sendet eine Statusmeldung mit GPS-Koordinaten an das lokale Mesh-Netz.
+
+[ROT]   EINGESCHLOSSEN / HILFE (TRAPPED / AID):
+        Höchste Priorität: SOS-Notruf + 18.5 kHz Ultraschall-Ortungston für Rettungskräfte unter Trümmern.
+
+[GELB]  BENÖTIGE VERSORGUNG (NEED SUPPLIES):
+        1-Klick-Anforderung von Trinkwasser, Nahrung, Medikamenten, Notunterkunft oder Strom.
+
+[LILA]  GEFAHR MELDEN (REPORT DANGER):
+        Warnung vor Stromleitungen, Gaslecks, Bränden oder Einsturzgefahr.
+
+[PURGE] NOTFALL-LÖSCHUNG (PANIC PURGE):
+        VERNICHTET SOFORT ALLE SCHLÜSSEL UND SCHLIESST DIE APP.
+        Bei drohender Beschlagnahme oder Kontrolle unverzüglich aktivieren!
+
+--------------------------------------------------------------------------------
+PRÜFSUMME (SHA-256):
+a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+================================================================================

@@ -1,0 +1,54 @@
+================================================================================
+PANDUAN DARURAT & PEMASANGAN APLIKASI MANAJEMEN BENCANA (BAHASA INDONESIA)
+================================================================================
+Platform: Android 10+ (API 29+)
+Beroperasi 100% tanpa internet, tanpa pulsa, dan tanpa server pusat.
+
+--------------------------------------------------------------------------------
+1. CARA MEMASANG (TANPA INTERNET)
+--------------------------------------------------------------------------------
+1. Temukan file: DisasterManagement-v1.2.0-signed.apk
+2. Ketuk file untuk memulai pemasangan.
+3. Jika Android menampilkan "Instal aplikasi dari sumber tidak dikenal":
+   - Buka "Pengaturan" (Settings)
+   - Aktifkan "Izinkan dari sumber ini" (Allow from this source)
+   - Kembali dan pilih "Pasang" (Install)
+4. Ikon perisai taktis akan muncul di layar utama Anda.
+
+--------------------------------------------------------------------------------
+2. CARA BERBAGI SECARA OFFLINE (VIRAL SIDELOAD)
+--------------------------------------------------------------------------------
+Metode A:
+1. Buka aplikasi di ponsel Anda, lalu pilih "Share App Offline".
+2. Ponsel akan mengaktifkan hotspot lokal dan menampilkan Kode QR.
+3. Hubungkan ponsel rekan ke hotspot Anda dan pindai Kode QR dengan kamera untuk mengunduh APK secara langsung antar ponsel!
+
+Metode B:
+Kirim file APK melalui Bluetooth atau salin lewat Flashdisk USB OTG / Kartu MicroSD.
+
+--------------------------------------------------------------------------------
+3. FUNGSI TOMBOL DARURAT
+--------------------------------------------------------------------------------
+[HIJAU]  SAYA AMAN (I AM SAFE):
+         Mengirim status konfirmasi aman beserta koordinat GPS ke jejaring sekitar.
+
+[MERAH]  TERJEBAK / BUTUH BANTUAN (TRAPPED / AID):
+         Sinyal darurat prioritas tinggi + memancarkan sinyal suara ultrasonik 18.5 kHz untuk memandu tim penyelamat di lokasi runtuhan.
+
+[KUNING] BUTUH LOGISTIK (NEED SUPPLIES):
+         Permintaan 1-sentuhan untuk Air Bersih, Makanan, Medis, Tenda, atau Listrik.
+
+[BAHAYA] LAPOR BAHAYA (REPORT DANGER):
+         Peringatan gempa susulan, tsunami, kabel listrik putus, kebakaran, atau longsor.
+
+[MIKRO]  PUSH-TO-TALK:
+         Merekam memo suara terenkripsi kuantum tanpa jaringan seluler.
+
+[TENGKORAK] HAPUS DARURAT (PANIC PURGE):
+         MENGHANCURKAN SELURUH KUNCI ENKRIPSI DAN DATA APLIKASI SEKETIKA.
+         Gunakan jika ponsel Anda terancam disita atau digeledah!
+
+--------------------------------------------------------------------------------
+KODE VERIFIKASI (SHA-256):
+a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+================================================================================

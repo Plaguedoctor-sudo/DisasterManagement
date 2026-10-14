@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">재난 대응</string>
+    <string name="service_notification_title">시민 재난 텔레메트리 서비스</string>
+    <string name="service_notification_desc">보조 센서 및 로컬 피어 메시 프레임을 모니터링 중입니다.</string>
+</resources>

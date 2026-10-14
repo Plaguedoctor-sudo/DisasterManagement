@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">သဘာဝဘေးအန္တရာယ်စီမံခန့်ခွဲမှု</string>
+    <string name="service_notification_title">အရပ်ဘက် ဘေးအန္တရာယ် ဆက်သွယ်ရေးစနစ်</string>
+    <string name="service_notification_desc">အနီးအနားရှိ ဆက်သွယ်ရေးလှိုင်းများနှင့် ကွန်ရက်ဒေတာများကို စောင့်ကြည့်နေပါသည်။</string>
+</resources>

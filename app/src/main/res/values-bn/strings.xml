@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">দুর্যোগ ব্যবস্থাপনা</string>
+    <string name="service_notification_title">বেসামরিক দুর্যোগ টেলিমেট্রি সেবা</string>
+    <string name="service_notification_desc">স্থানীয় মেশ ফ্রেম এবং সেন্সর পর্যবেক্ষণ করা হচ্ছে।</string>
+</resources>

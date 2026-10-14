@@ -178,5 +178,67 @@
                 android:textColor="#FFFFFF" />
         </LinearLayout>
 
+        <!-- STRICT AIR-GAP ENFORCEMENT & DATA SOVEREIGNTY -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="STRICT AIR-GAP &amp; DATA SOVEREIGNTY"
+            android:textColor="#00FF66"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#161616"
+            android:padding="14dp"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Operational Security Mode"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="STRICT AIR-GAP ENFORCED (Zero External Internet Connectivity)"
+                android:textColor="#34D399"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Security &amp; Architectural Invariants:"
+                android:textColor="#94A3B8"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="• Cloud / WAN Egress: Permanently neutralized&#10;• Remote Servers / Endpoints: None (Zero remote dependencies)&#10;• On-Device Intelligence: 100% local memory-resident execution&#10;• Local Vault: AES-256 SQLCipher encrypted on-device database&#10;• Physical Transport: Peer-to-peer BLE &amp; Wi-Fi Direct only"
+                android:textColor="#E2E8F0"
+                android:textSize="11sp"
+                android:lineSpacingExtra="3dp"
+                android:layout_marginBottom="14dp" />
+
+            <Button
+                android:id="@+id/btnAuditAirGapIntegrity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Verify Air-Gap Attestation"
+                android:backgroundTint="#065F46"
+                android:textColor="#ECFDF5" />
+        </LinearLayout>
+
     </LinearLayout>
 </ScrollView>

@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">إدارة الكوارث</string>
+    <string name="service_notification_title">خدمة الرصد والتليمترية للطوارئ المدنية</string>
+    <string name="service_notification_desc">مراقبة الحساسات المساعدة وإطارات الشبكة المحلية.</string>
+</resources>

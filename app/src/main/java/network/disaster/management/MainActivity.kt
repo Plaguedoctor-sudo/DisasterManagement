@@ -54,6 +54,8 @@ import network.disaster.management.map.DisasterIncidentType
 import network.disaster.management.map.MapIncident
 import network.disaster.management.map.TacticalPoint
 import network.disaster.management.system.EmergencyRescueSignaler
+import network.disaster.management.localai.OnDeviceTacticalAdvisor
+import network.disaster.management.localai.LocalAirGapManager
 import java.io.File
 import java.io.FileOutputStream
 import java.security.SecureRandom
@@ -67,6 +69,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mediaChunker: MediaChunkingEngine
     private lateinit var gpsHelper: GpsBeaconHelper
     private lateinit var rescueSignaler: EmergencyRescueSignaler
+    private val onDeviceAdvisor = OnDeviceTacticalAdvisor()
     private val memoryLock = NativeMemoryLock()
     private val hybridEngine = HybridEngine()
     private val acousticModem = FastFskModem()
@@ -168,6 +171,7 @@ class MainActivity : AppCompatActivity() {
         setupGroupsTab()
         setupMediaTab()
         setupRelaysTab()
+        setupCloudTab()
 
         findViewById<TextView>(R.id.tvStatus).text = "Status: Initializing Mesh Transceivers..."
 
@@ -219,12 +223,14 @@ class MainActivity : AppCompatActivity() {
         val tabGroups = findViewById<View>(R.id.layoutTabGroups)
         val tabMedia = findViewById<View>(R.id.layoutTabMedia)
         val tabRelays = findViewById<View>(R.id.layoutTabRelays)
+        val tabCloud = findViewById<View>(R.id.layoutTabCloud)
 
         tabLayout.addTab(tabLayout.newTab().setText("Feed"))
         tabLayout.addTab(tabLayout.newTab().setText("Tactical Map"))
         tabLayout.addTab(tabLayout.newTab().setText("Groups"))
         tabLayout.addTab(tabLayout.newTab().setText("Media Share"))
         tabLayout.addTab(tabLayout.newTab().setText("Relays"))
+        tabLayout.addTab(tabLayout.newTab().setText("Tactical AI"))
 
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
@@ -233,6 +239,7 @@ class MainActivity : AppCompatActivity() {
                 tabGroups.visibility = View.GONE
                 tabMedia.visibility = View.GONE
                 tabRelays.visibility = View.GONE
+                tabCloud?.visibility = View.GONE
 
                 when (tab?.position) {
                     0 -> {
@@ -252,6 +259,10 @@ class MainActivity : AppCompatActivity() {
                     4 -> {
                         tabRelays.visibility = View.VISIBLE
                         updateStorageQuotaDisplay()
+                    }
+                    5 -> {
+                        tabCloud?.visibility = View.VISIBLE
+                        updateCloudTabUi()
                     }
                 }
             }
@@ -2007,6 +2018,149 @@ class MainActivity : AppCompatActivity() {
                 findViewById<ProgressBar>(R.id.pbPoolC)?.progress = pctC
             }
         }
+    }
+
+    private fun setupCloudTab() {
+        val btnAuditAirGap = findViewById<Button>(R.id.btnAuditAirGap)
+        val btnAsk = findViewById<Button>(R.id.btnAskGemini)
+        val etPrompt = findViewById<EditText>(R.id.etGeminiPrompt)
+        val layoutResponse = findViewById<View>(R.id.layoutGeminiResponse)
+        val tvResponse = findViewById<TextView>(R.id.tvGeminiResponseText)
+        val btnBroadcastAi = findViewById<Button>(R.id.btnBroadcastAiToMesh)
+        val btnCopyAi = findViewById<Button>(R.id.btnCopyAiResponse)
+        val btnOpenSettings = findViewById<Button>(R.id.btnOpenCloudSettings)
+
+        val chipTriage = findViewById<Button>(R.id.chipTriageDistress)
+        val chipSitrep = findViewById<Button>(R.id.chipGenerateSitrep)
+        val chipTrauma = findViewById<Button>(R.id.chipTraumaBleed)
+        val chipWater = findViewById<Button>(R.id.chipWaterSafety)
+        val chipCollapse = findViewById<Button>(R.id.chipCollapseHazard)
+        val chipBurns = findViewById<Button>(R.id.chipBurns)
+        val chipSmoke = findViewById<Button>(R.id.chipSmoke)
+        val chipHypo = findViewById<Button>(R.id.chipHypothermia)
+
+        val badge = findViewById<TextView>(R.id.tvCloudUplinkBadge)
+        val status = findViewById<TextView>(R.id.tvCloudSyncStatus)
+        badge?.text = "100% AIR-GAPPED"
+        badge?.setBackgroundColor(0xFF064E3B.toInt())
+        badge?.setTextColor(0xFFA7F3D0.toInt())
+        status?.text = "All distress triage, survival intelligence, and vaults execute 100% locally."
+        status?.setTextColor(0xFF00FF66.toInt())
+
+        btnAuditAirGap?.setOnClickListener {
+            val audit = network.disaster.management.localai.LocalAirGapManager.auditAirGapStatus(this)
+            AlertDialog.Builder(this)
+                .setTitle("🛡️ ${audit.policyTitle}")
+                .setMessage(
+                    "STATUS: STRICT AIR-GAP CONFIRMED\n\n" +
+                    "• Network Policy:\n${audit.networkPolicySummary}\n\n" +
+                    "• Storage Encryption:\n${audit.storagePolicySummary}\n\n" +
+                    "• Tactical Intelligence:\n${audit.intelligenceSummary}\n\n" +
+                    "• Physical Mesh Transport:\n${audit.physicalMeshSummary}"
+                )
+                .setPositiveButton("Confirmed", null)
+                .show()
+        }
+
+        fun displayAiAdvice(title: String, text: String) {
+            layoutResponse?.visibility = View.VISIBLE
+            tvResponse?.text = text
+        }
+
+        btnAsk?.setOnClickListener {
+            val query = etPrompt?.text?.toString()?.trim().orEmpty()
+            if (query.isNotEmpty()) {
+                val advice = onDeviceAdvisor.queryEmergencyAdvisor(query)
+                displayAiAdvice("ADVICE", advice)
+            }
+        }
+
+        chipTriage?.setOnClickListener {
+            val latestDistress = shredder.getMessages()
+                .lastOrNull { it.isEmergency || it.content.contains("SOS", true) || it.content.contains("TRAPPED", true) }
+            val textToTriage = latestDistress?.content ?: "RED ALERT: Trapped survivor with deep puncture wound and heavy bleeding near building collapse."
+            etPrompt?.setText("Triage assessment: $textToTriage")
+            val assessment = onDeviceAdvisor.triageDistress(textToTriage)
+            val formatted = buildString {
+                append("🚨 ON-DEVICE TRIAGE RESULT: [${assessment.priorityCode}] ${assessment.priorityLabel}\n")
+                append("Urgency Score: ${assessment.urgencyScore}/10 | Evac Required: ${assessment.requiresEvacuation}\n\n")
+                append("Tactical Summary:\n${assessment.summary}\n\n")
+                append("Immediate Life-Safety Actions:\n")
+                assessment.immediateActions.forEach { append("• $it\n") }
+                append("\nRequired Medical Supplies:\n")
+                assessment.suggestedSupplies.forEach { append("• $it\n") }
+            }
+            displayAiAdvice("TRIAGE", formatted)
+        }
+
+        chipSitrep?.setOnClickListener {
+            etPrompt?.setText("Generate Sector SITREP")
+            val msgs = shredder.getMessages()
+            val report = onDeviceAdvisor.generateSitrep(msgs, currentIncidents, 1)
+            displayAiAdvice("SITREP", report.rawBriefing)
+        }
+
+        chipTrauma?.setOnClickListener {
+            etPrompt?.setText("Severe bleeding & tourniquet application instructions")
+            val advice = onDeviceAdvisor.queryEmergencyAdvisor("bleeding tourniquet")
+            displayAiAdvice("TRAUMA", advice)
+        }
+
+        chipWater?.setOnClickListener {
+            etPrompt?.setText("Water purification emergency instructions")
+            val advice = onDeviceAdvisor.queryEmergencyAdvisor("water purification")
+            displayAiAdvice("WATER", advice)
+        }
+
+        chipCollapse?.setOnClickListener {
+            etPrompt?.setText("Building collapse entrapment survival protocol")
+            val advice = onDeviceAdvisor.queryEmergencyAdvisor("building collapse entrapment")
+            displayAiAdvice("COLLAPSE", advice)
+        }
+
+        chipBurns?.setOnClickListener {
+            etPrompt?.setText("Thermal burn emergency treatment protocol")
+            val advice = onDeviceAdvisor.queryEmergencyAdvisor("thermal burn")
+            displayAiAdvice("BURNS", advice)
+        }
+
+        chipSmoke?.setOnClickListener {
+            etPrompt?.setText("Toxic fumes & smoke evacuation protocol")
+            val advice = onDeviceAdvisor.queryEmergencyAdvisor("toxic smoke fumes")
+            displayAiAdvice("SMOKE", advice)
+        }
+
+        chipHypo?.setOnClickListener {
+            etPrompt?.setText("Hypothermia & shock stabilization protocol")
+            val advice = onDeviceAdvisor.queryEmergencyAdvisor("hypothermia shock")
+            displayAiAdvice("HYPOTHERMIA", advice)
+        }
+
+        btnBroadcastAi?.setOnClickListener {
+            val adviceText = tvResponse?.text?.toString()?.trim().orEmpty()
+            if (adviceText.isNotEmpty()) {
+                val snippet = adviceText.lines().take(5).joinToString("\n")
+                broadcastReport("🤖 [ON-DEVICE TACTICAL ADVISORY]:\n$snippet")
+                Toast.makeText(this@MainActivity, "📢 Broadcasted tactical advice to local mesh!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        btnCopyAi?.setOnClickListener {
+            val text = tvResponse?.text?.toString().orEmpty()
+            val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clip = android.content.ClipData.newPlainText("Tactical Emergency Advice", text)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(this@MainActivity, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
+
+        btnOpenSettings?.setOnClickListener {
+            startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+        }
+    }
+
+    private fun updateCloudTabUi() {
+        val tvInfo = findViewById<TextView>(R.id.tvCloudProjectInfo)
+        tvInfo?.text = "Environment: Strictly Local • Zero WAN / Cloud Egress Enforced"
     }
 
     private var activeMediaPlayer: android.media.MediaPlayer? = null

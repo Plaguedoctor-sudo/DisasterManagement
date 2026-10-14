@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Usimamizi wa Maafa</string>
+    <string name="service_notification_title">Huduma ya Mawasiliano ya Maafa ya Kiraia</string>
+    <string name="service_notification_desc">Kufuatilia vitambuzi na mtandao wa mawasiliano wa karibu.</string>
+</resources>

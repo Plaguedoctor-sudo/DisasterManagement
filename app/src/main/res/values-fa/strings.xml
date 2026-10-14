@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">مدیریت بحران</string>
+    <string name="service_notification_title">سرویس تله‌متری بحران‌های مدنی</string>
+    <string name="service_notification_desc">پایش حسگرهای کمکی و فریم‌های شبکه محلی همتا.</string>
+</resources>

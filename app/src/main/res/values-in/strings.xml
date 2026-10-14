@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Manajemen Bencana</string>
+    <string name="service_notification_title">Layanan Telemetri Bencana Sipil</string>
+    <string name="service_notification_desc">Memantau sensor cadangan dan transmisi mesh rekan lokal.</string>
+</resources>

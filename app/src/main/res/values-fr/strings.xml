@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Gestion des Catastrophes</string>
+    <string name="service_notification_title">Service de Télémétrie Civile d\'Urgence</string>
+    <string name="service_notification_desc">Surveillance des capteurs auxiliaires et des trames de pairs locaux.</string>
+</resources>

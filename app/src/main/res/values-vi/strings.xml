@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Quản Lý Thảm Họa</string>
+    <string name="service_notification_title">Dịch Vụ Đo Từ Xa Thảm Họa Dân Sự</string>
+    <string name="service_notification_desc">Đang theo dõi các cảm biến phụ trợ và các khung mạng lưới cục bộ.</string>
+</resources>

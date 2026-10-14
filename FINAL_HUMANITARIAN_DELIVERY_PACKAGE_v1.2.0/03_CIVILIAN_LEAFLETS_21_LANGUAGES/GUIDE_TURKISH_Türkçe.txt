@@ -1,0 +1,51 @@
+================================================================================
+ACİL DURUM VE KURULUM REHBERİ - DISASTER MANAGEMENT (TÜRKÇE)
+================================================================================
+Platform: Android 10 ve üzeri (API 29+)
+%100 Çevrimdışı: İnternet, baz istasyonu, SIM kart veya sunucu gerektirmez.
+
+--------------------------------------------------------------------------------
+1. İNTERNET OLMADAN KURULUM
+--------------------------------------------------------------------------------
+1. Dosyayı bulun: DisasterManagement-v1.2.0-signed.apk
+2. Kurulumu başlatmak için dosyaya dokunun.
+3. Android güvenlik uyarısı verirse:
+   - "Ayarlar" (Settings) seçeneğine gidin
+   - "Bu kaynaktan izin ver" (Allow from this source) seçeneğini açın
+   - Geri dönüp "Yükle" (Install) butonuna basın
+4. Taktik kalkan simgesi ana ekranınızda görünecektir.
+
+--------------------------------------------------------------------------------
+2. ÇEVRİMDIŞI DİĞER CİHAZLARA YAYMA (HOTSPOT İLE)
+--------------------------------------------------------------------------------
+Yöntem A:
+1. Uygulamada "Share App Offline" seçeneğine dokunun.
+2. Telefon yerel bir Wi-Fi erişim noktası oluşturur ve ekranda QR Kod gösterir.
+3. Diğer kişi bu Wi-Fi'ye bağlanıp kamerasıyla QR kodu taratarak APK'yı doğrudan telefonunuzdan indirir.
+
+Yöntem B:
+Bluetooth, Quick Share veya USB OTG bellek / MicroSD kart ile doğrudan aktarın.
+
+--------------------------------------------------------------------------------
+3. ACİL DURUM BUTONLARI VE İŞLEVLERİ
+--------------------------------------------------------------------------------
+[YEŞİL]   GÜVENDEYİM (I AM SAFE):
+          Yakındaki tüm cihazlara konumunuzla birlikte güvende olduğunuzu bildirir.
+
+[KIRMIZI] ENKAZ ALTINDA / ACİL YARDIM (TRAPPED / AID):
+          En yüksek öncelikli SOS sinyali + enkaz altındayken arama kurtarma ekipleri için 18.5 kHz ultrasonik akustik ses yayar.
+
+[SARI]    ERZAK / MALZEME GEREKLİ (NEED SUPPLIES):
+          Temiz su, gıda, ilk yardım, çadır veya şarj ihtiyacını tek dokunuşla iletir.
+
+[MOR]     TEHLİKE BİLDİR (REPORT DANGER):
+          Kopan elektrik telleri, gaz kaçağı, yangın, sel veya bina yıkılma tehlikesini bildirir.
+
+[KURUKAFА] ACİL İMHA (PANIC PURGE):
+          ŞİFRELEME ANAHTARLARINI VE VERİLERİ ANINDA SİLER VE UYGULAMAYI KAPATIR.
+          Cihazınızın zorla incelenmesi veya el konulması riski varsa kullanın!
+
+--------------------------------------------------------------------------------
+DOĞRULAMA KODU (SHA-256):
+a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+================================================================================

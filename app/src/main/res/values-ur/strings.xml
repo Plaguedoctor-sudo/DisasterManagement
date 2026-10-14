@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">ڈیزاسٹر مینجمنٹ</string>
+    <string name="service_notification_title">سول ڈیزاسٹر ٹیلی میٹری سروس</string>
+    <string name="service_notification_desc">مقامی میش سگنلز اور سینسرز کی نگرانی جاری ہے۔</string>
+</resources>

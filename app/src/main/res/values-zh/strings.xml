@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">灾难应急管理</string>
+    <string name="service_notification_title">民防灾难应急遥测服务</string>
+    <string name="service_notification_desc">正在监听辅助传感器与本地对等节点网状通信帧。</string>
+</resources>

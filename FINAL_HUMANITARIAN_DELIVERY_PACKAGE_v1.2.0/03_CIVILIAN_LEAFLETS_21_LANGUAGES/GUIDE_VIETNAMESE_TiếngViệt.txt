@@ -1,0 +1,51 @@
+================================================================================
+HƯỚNG DẪN CÀI ĐẶT KHẨN CẤP NGOẠI TUYẾN - DISASTER MANAGEMENT (TIẾNG VIỆT)
+================================================================================
+Nền tảng: Android 10 trở lên (API 29+)
+100% Hoạt động độc lập: Không cần Internet, không cần SIM, không máy chủ.
+
+--------------------------------------------------------------------------------
+1. CÁCH CÀI ĐẶT (KHÔNG CẦN INTERNET)
+--------------------------------------------------------------------------------
+1. Tìm tập tin: DisasterManagement-v1.2.0-signed.apk
+2. Nhấn vào tập tin để bắt đầu cài đặt.
+3. Nếu Android thông báo "Chặn cài đặt ứng dụng không rõ nguồn gốc":
+   - Nhấn "Cài đặt" (Settings)
+   - Bật "Cho phép từ nguồn này" (Allow from this source)
+   - Quay lại và nhấn "Cài đặt" (Install)
+4. Biểu tượng chiếc khiên chiến thuật sẽ xuất hiện trên màn hình chính.
+
+--------------------------------------------------------------------------------
+2. CHIA SẺ OFFLINE CHO NGƯỜI XUNG QUANH
+--------------------------------------------------------------------------------
+Cách A (Phát điểm truy cập trong ứng dụng):
+1. Trong ứng dụng, nhấn "Share App Offline".
+2. Điện thoại tạo một mạng Wi-Fi nội bộ và hiển thị mã QR.
+3. Người khác kết nối Wi-Fi đó và quét mã QR bằng camera để tải APK trực tiếp.
+
+Cách B:
+Chuyển tập tin qua Bluetooth, Quick Share hoặc qua USB OTG / Thẻ nhớ MicroSD.
+
+--------------------------------------------------------------------------------
+3. CÁC NÚT THAO TÁC KHẨN CẤP
+--------------------------------------------------------------------------------
+[XANH LÁ] TÔI AN TOÀN (I AM SAFE):
+          Phát tín hiệu xác nhận an toàn kèm tọa độ GPS cho mạng lưới xung quanh.
+
+[ĐỎ]      BỊ MẮC KẸT / CẦU CỨU (TRAPPED / AID):
+          Báo động SOS ưu tiên cao nhất + phát âm thanh siêu âm 18.5 kHz xuyên qua đống đổ nát cho đội cứu hộ.
+
+[VÀNG]    CẦN NHẬN TIẾP TẾ (NEED SUPPLIES):
+          Yêu cầu khẩn cấp 1 chạm: Nước uống, Thức ăn, Thuốc men, Chỗ trú ẩn, Nguồn sạc.
+
+[TÍM]     CẢNH BÁO NGUY HIỂM (REPORT DANGER):
+          Cảnh báo dây điện đứt, rò rỉ khí gas, hỏa hoạn, lũ quét hoặc sạt lở.
+
+[ĐẦU LÂU] TIÊU HỦY KHẨN CẤP (PANIC PURGE):
+          HỦY TOÀN BỘ KHÓA MÃ HÓA VÀ XÓA DỮ LIỆU TRONG RAM NGAY LẬP TỨC.
+          Sử dụng khi điện thoại có nguy cơ bị kiểm tra hoặc thu giữ!
+
+--------------------------------------------------------------------------------
+MÃ XÁC THỰC (SHA-256):
+a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+================================================================================

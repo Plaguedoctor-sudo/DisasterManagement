@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Gestión de Desastres</string>
+    <string name="service_notification_title">Servicio de Telemetría Civil de Emergencia</string>
+    <string name="service_notification_desc">Monitoreo de sensores auxiliares y tramas de pares locales.</string>
+</resources>

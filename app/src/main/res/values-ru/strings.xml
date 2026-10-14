@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Управление в ЧС</string>
+    <string name="service_notification_title">Гражданская служба телеметрии ЧС</string>
+    <string name="service_notification_desc">Мониторинг вспомогательных датчиков и локальных кадров mesh-сети.</string>
+</resources>

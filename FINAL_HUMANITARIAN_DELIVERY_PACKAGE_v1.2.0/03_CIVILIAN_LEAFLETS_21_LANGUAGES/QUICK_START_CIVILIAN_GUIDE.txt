@@ -1,0 +1,48 @@
+================================================================================
+DISASTER MANAGEMENT APP - OFFLINE EMERGENCY GUIDE & INSTALLATION
+================================================================================
+Platform: Android 10+ (API 29+)
+Zero Cloud / Zero Internet / Zero Cellular Service Required
+
+--------------------------------------------------------------------------------
+1. HOW TO INSTALL (NO INTERNET NEEDED)
+--------------------------------------------------------------------------------
+1. Locate the file: DisasterManagement-v1.2.0-signed.apk
+2. Tap on the file to begin installation.
+3. If Android prompts: "Install unknown apps from this source":
+   - Tap "Settings"
+   - Switch "Allow from this source" to ON
+   - Tap "Back" and tap "Install"
+4. The application icon (tactical shield) will appear on your home screen.
+
+--------------------------------------------------------------------------------
+2. HOW TO SHARE TO OTHER PHONES (VIRAL OFFLINE SHARING)
+--------------------------------------------------------------------------------
+Method A:
+1. Open DisasterManagement on your phone.
+2. Tap "Share App Offline" in the menu.
+3. It creates an offline Wi-Fi hotspot and displays a QR code.
+4. Have your friend connect their phone's Wi-Fi to your hotspot and scan the QR
+   code with their camera. The APK will download directly between your phones!
+
+Method B:
+1. Open your File Manager -> Downloads.
+2. Select DisasterManagement-v1.2.0-signed.apk.
+3. Tap "Share" and send via Bluetooth or Nearby Share / Quick Share.
+
+--------------------------------------------------------------------------------
+3. EMERGENCY ACTION BUTTONS
+--------------------------------------------------------------------------------
+[GREEN]  I AM SAFE      - Sends a check-in message to nearby devices with your status.
+[RED]    TRAPPED / AID  - High priority SOS alert. Also sends ultrasonic sound chirps.
+[YELLOW] NEED SUPPLIES  - 1-tap request for Water, Food, Medical, Shelter, or Power.
+[ALERT]  HAZARD REPORT  - Reports local dangers (gas leaks, live wires, fires, collapse).
+[MIC]    PUSH-TO-TALK   - Record voice memos sent securely over the mesh.
+[SKULL]  PANIC PURGE    - IMMEDIATELY DESTROYS ENCRYPTION KEYS & EXITS THE APP.
+                          Use this if your phone is about to be seized or searched!
+
+--------------------------------------------------------------------------------
+4. VERIFICATION CHECKSUM
+--------------------------------------------------------------------------------
+SHA-256: a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+================================================================================

@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">災害対策</string>
+    <string name="service_notification_title">市民防災テレメトリサービス</string>
+    <string name="service_notification_desc">補助センサーとローカルピアのメッシュフレームを監視中。</string>
+</resources>

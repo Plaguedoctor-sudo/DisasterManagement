@@ -1,0 +1,54 @@
+================================================================================
+GUÍA DE EMERGENCIA E INSTALACIÓN - DISASTER MANAGEMENT (ESPAÑOL)
+================================================================================
+Plataforma: Android 10 o superior (API 29+)
+100% Fuera de Línea: Sin internet, sin cobertura celular y sin servidores.
+
+--------------------------------------------------------------------------------
+1. INSTALACIÓN RÁPIDA (SIN INTERNET)
+--------------------------------------------------------------------------------
+1. Localice el archivo: DisasterManagement-v1.2.0-signed.apk
+2. Toque el archivo para iniciar la instalación.
+3. Si Android muestra una advertencia de seguridad:
+   - Toque "Ajustes" (Settings)
+   - Active "Permitir desde esta fuente" (Allow from this source)
+   - Regrese y toque "Instalar" (Install)
+4. El icono de escudo táctico aparecerá en su pantalla de inicio.
+
+--------------------------------------------------------------------------------
+2. COMPARTIR SIN INTERNET ENTRE DISPOSITIVOS
+--------------------------------------------------------------------------------
+Método A (Punto de acceso local):
+1. En la aplicación, toque "Share App Offline".
+2. Su teléfono creará una red Wi-Fi local y mostrará un código QR.
+3. Cualquier otro teléfono se conecta a su Wi-Fi y escanea el QR con su cámara para descargar el APK directamente.
+
+Método B:
+Envíe el archivo APK mediante Bluetooth, Quick Share o mediante memoria USB OTG / MicroSD.
+
+--------------------------------------------------------------------------------
+3. BOTONES DE ACCIÓN DE EMERGENCIA
+--------------------------------------------------------------------------------
+[VERDE]    ESTOY A SALVO (I AM SAFE):
+           Transmite confirmación de seguridad y ubicación a la red cercana.
+
+[ROJO]     ATRAPADO / AUXILIO (TRAPPED / AID):
+           Alerta SOS de alta prioridad + baliza acústica ultrasónica de 18.5 kHz para búsqueda y rescate en estructuras colapsadas.
+
+[AMARILLO] NECESITO SUMINISTROS (NEED SUPPLIES):
+           Petición en 1 toque de Agua potable, Alimentos, Medicinas, Refugio o Energía.
+
+[ALERTA]   REPORTAR PELIGRO (REPORT DANGER):
+           Alerta sobre cables caídos, fugas de gas, incendios o derrumbes.
+
+[MICRO]    PUSH-TO-TALK:
+           Mensajes de voz cifrados cuánticamente transmitidos por la red mesh.
+
+[PELIGRO]  PURGA DE PÁNICO (PANIC PURGE):
+           DESTRUYE INMEDIATAMENTE LAS CLAVES DE CIFRADO Y CIERRA LA APP.
+           ¡Úselo si su teléfono está a punto de ser inspeccionado o confiscado!
+
+--------------------------------------------------------------------------------
+SUMA DE VERIFICACIÓN (SHA-256):
+a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+================================================================================

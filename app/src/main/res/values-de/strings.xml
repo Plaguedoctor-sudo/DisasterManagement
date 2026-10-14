@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Katastrophenschutz</string>
+    <string name="service_notification_title">Ziviler Notfall-Telemetriedienst</string>
+    <string name="service_notification_desc">Überwachung von Hilfssensoren und lokalen Mesh-Frames.</string>
+</resources>

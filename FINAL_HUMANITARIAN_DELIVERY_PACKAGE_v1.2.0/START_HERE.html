@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DisasterManagement - Universal Multilingual Emergency Portal</title>
+<style>
+  :root {
+    --bg: #0b0f17;
+    --card-bg: #151c28;
+    --card-border: #222f42;
+    --text: #f0f6fc;
+    --text-muted: #8b949e;
+    --green: #238636;
+    --green-hover: #2ea043;
+    --red: #da3633;
+    --yellow: #d29922;
+    --purple: #8957e5;
+    --blue: #58a6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Helvetica, Arial, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    padding: 14px;
+    line-height: 1.6;
+  }
+  .container { max-width: 880px; margin: 0 auto; }
+  header {
+    text-align: center;
+    padding: 20px 10px 16px;
+    border-bottom: 2px solid var(--card-border);
+    margin-bottom: 16px;
+  }
+  h1 { font-size: 1.8rem; margin-bottom: 6px; color: var(--blue); }
+  .tagline { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 12px; }
+  .badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 14px; }
+  .badge {
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    background: #30363d;
+  }
+  .badge-offgrid { background: var(--red); }
+  .badge-crypto { background: var(--purple); }
+  .badge-open { background: var(--green); }
+
+  /* Language Selector Control */
+  .lang-control-box {
+    background: #101622;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 14px 0;
+    text-align: center;
+  }
+  .lang-select-dropdown {
+    width: 100%;
+    max-width: 450px;
+    padding: 10px 14px;
+    background: #1a2333;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 1px solid var(--blue);
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .lang-select-dropdown option { background: #151c28; color: #fff; }
+
+  /* Content Cards */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 1.25rem; margin-bottom: 10px; color: #79c0ff; border-bottom: 1px solid #222f42; padding-bottom: 6px; }
+  .btn-download {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: var(--green);
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    text-decoration: none;
+    margin: 12px 0 16px;
+    transition: background 0.2s ease;
+  }
+  .btn-download:hover { background: var(--green-hover); }
+  ol, ul { padding-left: 22px; margin: 8px 0; }
+  li { margin-bottom: 6px; }
+  .macro-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .macro-item {
+    background: #0f1520;
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 10px;
+  }
+  .macro-title { font-weight: bold; font-size: 0.92rem; margin-bottom: 3px; }
+  .macro-desc { font-size: 0.82rem; color: var(--text-muted); }
+  .panic-box { border-color: var(--red); background: rgba(218, 54, 51, 0.12); }
+  .panic-box .macro-title { color: #ff7b72; }
+
+  pre {
+    background: #090d14;
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.82rem;
+    color: #79c0ff;
+    border: 1px solid var(--card-border);
+    margin: 6px 0;
+  }
+  code { font-family: monospace; color: #f0883e; background: #090d14; padding: 2px 4px; border-radius: 3px; }
+
+  /* RTL Support */
+  .lang-section[dir="rtl"] { text-align: right; }
+  .lang-section[dir="rtl"] ol,
+  .lang-section[dir="rtl"] ul { padding-right: 22px; padding-left: 0; }
+
+  .lang-section { display: none; }
+  .lang-section.active { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🛡️ DisasterManagement v1.2.0</h1>
+    <p class="tagline">Universal Zero-Infrastructure Civil Protection & Tactical Mesh Communications</p>
+    <div class="badges">
+      <span class="badge badge-offgrid">100% OFF-GRID</span>
+      <span class="badge badge-crypto">ML-KEM-768 + X25519</span>
+      <span class="badge badge-open">ZERO CLOUD SERVERS</span>
+      <span class="badge">4,096-BYTE UNIFORM TRAFFIC</span>
+      <span class="badge">20+ GLOBAL LANGUAGES</span>
+    </div>
+
+    <!-- Universal Dropdown Language Selector -->
+    <div class="lang-control-box">
+      <label for="langDropdown" style="font-size:0.9rem; color: var(--text-muted); font-weight:600;">
+        🌐 SELECT YOUR LANGUAGE / भाषा चुनें / 选择语言 / اختر لغتك:
+      </label><br>
+      <select id="langDropdown" class="lang-select-dropdown" onchange="changeLanguage(this.value)">
+        <option value="en">🇬🇧 English (Global)</option>
+        <option value="zh">🇨🇳 中文 (Mandarin Chinese)</option>
+        <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
+        <option value="es">🇪🇸 Español (Spanish)</option>
+        <option value="ar">🇸🇩 العربية (Arabic / Sudan / MENA)</option>
+        <option value="fr">🇫🇷 Français (French)</option>
+        <option value="bn">🇧🇩 বাংলা (Bengali)</option>
+        <option value="pt">🇧🇷 Português (Portuguese)</option>
+        <option value="ru">🇷🇺 Русский (Russian)</option>
+        <option value="ur">🇵🇰 اردو (Urdu)</option>
+        <option value="id">🇮🇩 Bahasa Indonesia (Indonesian)</option>
+        <option value="de">🇩🇪 Deutsch (German)</option>
+        <option value="ja">🇯🇵 日本語 (Japanese)</option>
+        <option value="sw">🇰🇪 Kiswahili (Swahili)</option>
+        <option value="tr">🇹🇷 Türkçe (Turkish)</option>
+        <option value="vi">🇻🇳 Tiếng Việt (Vietnamese)</option>
+        <option value="ko">🇰🇷 한국어 (Korean)</option>
+        <option value="fa">🇮🇷 فارسی (Persian / Farsi)</option>
+        <option value="my">🇲🇲 မြန်မာစာ (Burmese)</option>
+        <option value="ht">🇭🇹 Kreyòl Ayisyen (Haiti)</option>
+        <option value="krio">🇸🇱 Krio (Sierra Leone)</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- 1. ENGLISH -->
+  <div id="lang-en" class="lang-section active">
+    <div class="card">
+      <h2>📲 1. Download & Install on Android</h2>
+      <p>Works on Android 10+ without SIM cards, cellular connection, or Google accounts.</p>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Install DisasterManagement v1.2.0 (18.7 MB)</a>
+      <ol>
+        <li>Tap the download button above or open <code>DisasterManagement-v1.2.0-signed.apk</code>.</li>
+        <li>If prompted with "Install unknown apps": Tap <strong>Settings</strong> &gt; Enable <strong>"Allow from this source"</strong> &gt; Tap <strong>Install</strong>.</li>
+        <li>Grant Bluetooth and Location permissions (needed for local mesh scanning; no data leaves your device).</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Emergency Action Buttons</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 I AM SAFE</div><div class="macro-desc">Broadcasts encrypted status check-in to nearby peers.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 TRAPPED / AID</div><div class="macro-desc">Priority SOS alert + 18.5 kHz ultrasonic acoustic rescue beacon.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#d29922;">🟡 NEED SUPPLIES</div><div class="macro-desc">1-tap request for Water, Food, Medical, Shelter, or Power.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#a371f7;">⚠️ REPORT DANGER</div><div class="macro-desc">Warns of live wires, gas leaks, fires, flood, or collapse.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 PANIC PURGE</div><div class="macro-desc">Instantly destroys encryption keys and halts app if under risk of search!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. CHINESE (中文) -->
+  <div id="lang-zh" class="lang-section">
+    <div class="card">
+      <h2>📲 1. 安卓安装步骤（完全离线）</h2>
+      <p>适用于 Android 10 或更高版本，无需 SIM 卡、无需流量、无需谷歌服务。</p>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 安装灾难应急管理平台 v1.2.0 (18.7 MB)</a>
+      <ol>
+        <li>点击上方按钮或打开 <code>DisasterManagement-v1.2.0-signed.apk</code>。</li>
+        <li>如提示“禁止安装未知应用”，请进入<strong>设置</strong> &gt; 开启<strong>“允许来自此来源的应用”</strong> &gt; 点击<strong>安装</strong>。</li>
+        <li>授予蓝牙与位置权限（仅用于手机间直接发现，绝不上传任何云端）。</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2>🔘 2. 战术应急按钮说明</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 我很安全 (I AM SAFE)</div><div class="macro-desc">向周围对等节点广播加密安全确认与坐标。</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 受困 / 紧急求救 (TRAPPED)</div><div class="macro-desc">最高优先SOS信标 + 18.5 kHz超声波声学搜救鸣叫穿透坍塌瓦砾。</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#d29922;">🟡 急需物资 (SUPPLIES)</div><div class="macro-desc">一键申请饮用水、食物、药品、帐篷或应急电源。</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#a371f7;">⚠️ 通报危险 (DANGER)</div><div class="macro-desc">通报高压电线脱落、燃气泄漏、火灾或坍塌隐患。</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 紧急销毁 (PANIC PURGE)</div><div class="macro-desc">面临强制搜查盘问时，瞬间物理销毁所有密钥与内存并强制退出！</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. HINDI (हिन्दी) -->
+  <div id="lang-hi" class="lang-section">
+    <div class="card">
+      <h2>📲 1. एंड्रॉइड पर बिना इंटरनेट इंस्टॉल करें</h2>
+      <p>Android 10+ पर बिना इंटरनेट, बिना मोबाइल सिग्नल और बिना सिम कार्ड के काम करता है।</p>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 आपदा प्रबंधन ऐप इंस्टॉल करें (18.7 MB)</a>
+      <ol>
+        <li>ऊपर दिए गए बटन पर टैप करें या <code>DisasterManagement-v1.2.0-signed.apk</code> खोलें।</li>
+        <li>सुरक्षा चेतावनी आने पर: <strong>सेटिंग्स</strong> &gt; <strong>"इस स्रोत से अनुमति दें"</strong> चालू करें &gt; <strong>इंस्टॉल करें</strong>।</li>
+        <li>ब्लूटूथ और लोकेशन अनुमति दें (केवल स्थानीय फोन-टू-फोन नेटवर्क बनाने के लिए आवश्यक है)।</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2>🔘 2. मुख्य आपातकालीन बटन</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 मैं सुरक्षित हूँ (I AM SAFE)</div><div class="macro-desc">आसपास के फोनों को सुरक्षित होने का सुरक्षित संदेश भेजें।</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 फंसा हुआ / मदद (TRAPPED)</div><div class="macro-desc">SOS अलर्ट + मलबे में दबे होने पर 18.5 kHz अल्ट्रासोनिक ध्वनि संकेत बजाएं।</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#d29922;">🟡 राहत सामग्री चाहिए (SUPPLIES)</div><div class="macro-desc">पीने का पानी, भोजन, दवा, तिरपाल या मोबाइल चार्जिंग के लिए 1-टैप अनुरोध।</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#a371f7;">⚠️ खतरे की सूचना दें (DANGER)</div><div class="macro-desc">बिजली के तार, गैस रिसाव, आग, बाढ़ या मकान गिरने की चेतावनी दें।</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 पैनिक पर्ज (PANIC PURGE)</div><div class="macro-desc">फोन जब्त होने या तलाशी की स्थिति में डेटा और कुंजियों को तुरंत मिटा दें!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. SPANISH (Español) -->
+  <div id="lang-es" class="lang-section">
+    <div class="card">
+      <h2>📲 1. Instalación en Android Fuera de Línea</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Instalar DisasterManagement v1.2.0 (18.7 MB)</a>
+      <p>Abra <code>DisasterManagement-v1.2.0-signed.apk</code> y permita "Instalar aplicaciones desconocidas" en Ajustes.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Botones de Emergencia</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 ESTOY A SALVO</div><div class="macro-desc">Transmite confirmación de seguridad y GPS a la red local.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 ATRAPADO / AUXILIO</div><div class="macro-desc">SOS prioritario + baliza ultrasónica de 18.5 kHz para búsqueda bajo escombros.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#d29922;">🟡 NECESITO SUMINISTROS</div><div class="macro-desc">Petición en 1 toque: Agua, Comida, Medicamentos, Refugio, Energía.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 PURGA DE PÁNICO</div><div class="macro-desc">Destruye inmediatamente claves y datos en RAM si el teléfono es incautado.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. ARABIC (العربية) -->
+  <div id="lang-ar" class="lang-section" dir="rtl">
+    <div class="card">
+      <h2>📲 ١. التثبيت المباشر بدون إنترنت</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 تثبيت تطبيق إدارة الكوارث v1.2.0 (18.7 ميجابايت)</a>
+      <p>افتح ملف <code>DisasterManagement-v1.2.0-signed.apk</code> وفعّل خيار "السماح من هذا المصدر" في الإعدادات.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 ٢. أزرار الطوارئ التكتيكية</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 أنا بأمان (I AM SAFE)</div><div class="macro-desc">إرسال إشعار طمأنة للأهل والفريق عبر الأجهزة المجاورة.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 محاصر / أطلب النجدة (TRAPPED)</div><div class="macro-desc">نداء استغاثة عاجل + صافرة صوتية 18.5 كيلوهرتز تخترق الركام.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#d29922;">🟡 أحتاج إمدادات (SUPPLIES)</div><div class="macro-desc">طلب فوري لمياه الشرب، الطعام، الأدوية، أو المأوى.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 مسح الطوارئ (PANIC PURGE)</div><div class="macro-desc">إتلاف فوري لجميع مفاتيح التشفير ومسح الذاكرة عند التفتيش أو المصادرة!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. FRENCH (Français) -->
+  <div id="lang-fr" class="lang-section">
+    <div class="card">
+      <h2>📲 1. Installation Hors-Ligne (Android 10+)</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Installer DisasterManagement v1.2.0 (18.7 Mo)</a>
+      <p>Ouvrez <code>DisasterManagement-v1.2.0-signed.apk</code> et activez "Autoriser cette source" si nécessaire.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Touches de Secours</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 JE SUIS EN SÉCURITÉ</div><div class="macro-desc">Envoie un message de statut chiffré à vos proches.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 PIÉGÉ / AIDE (SOS)</div><div class="macro-desc">Alerte prioritaire + balise acoustique 18.5 kHz sous les décombres.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 PURGE D'URGENCE</div><div class="macro-desc">Détruit immédiatement les clés en RAM en cas de contrôle armé.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. BENGALI (বাংলা) -->
+  <div id="lang-bn" class="lang-section">
+    <div class="card">
+      <h2>📲 ১. ইন্টারনেট ছাড়া অ্যান্ড্রয়েডে ইনস্টল করুন</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 দুর্যোগ ব্যবস্থাপনা অ্যাপ ইনস্টল করুন (18.7 MB)</a>
+      <p><code>DisasterManagement-v1.2.0-signed.apk</code> ফাইলটি খুলুন এবং সেটিংস থেকে ইনস্টলের অনুমতি দিন।</p>
+    </div>
+    <div class="card">
+      <h2>🔘 ২. জরুরি বোতামসমূহ</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 আমি নিরাপদ (I AM SAFE)</div><div class="macro-desc">আশেপাশের ডিভাইসে নিরাপদে থাকার বার্তা পাঠান।</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 আটকা পড়েছি (TRAPPED / AID)</div><div class="macro-desc">জরুরি SOS সংকেত + ধ্বংসস্তূপের নিচে ১৮.৫ কিলোহার্টজ আল্ট্রাসনিক সংকেত।</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 প্যানিক পার্জ (PANIC PURGE)</div><div class="macro-desc">তল্লাশির মুখে সাথে সাথে সব তথ্য ও সিক্রেট কি মুছে ফেলুন।</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. PORTUGUESE (Português) -->
+  <div id="lang-pt" class="lang-section">
+    <div class="card">
+      <h2>📲 1. Instalação Offline no Android</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Instalar DisasterManagement v1.2.0 (18.7 MB)</a>
+      <p>Toque no arquivo <code>DisasterManagement-v1.2.0-signed.apk</code> e ative "Permitir desta fonte" nas configurações.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Botões de Emergência</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 ESTOU SEGURO</div><div class="macro-desc">Avisa seus parentes e rede próxima que você está bem.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 PRESO / SOCORRO</div><div class="macro-desc">SOS de emergência + sinal sonoro de 18.5 kHz para equipes de resgate.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 PURGA DE PÂNICO</div><div class="macro-desc">Destrói chaves e apaga memória caso o aparelho seja apreendido.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. RUSSIAN (Русский) -->
+  <div id="lang-ru" class="lang-section">
+    <div class="card">
+      <h2>📲 1. Установка без интернета на Android</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Установить DisasterManagement v1.2.0 (18.7 МБ)</a>
+      <p>Откройте <code>DisasterManagement-v1.2.0-signed.apk</code> и разрешите установку из неизвестных источников в Настройках.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Экстренные кнопки</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 Я В БЕЗОПАСНОСТИ</div><div class="macro-desc">Рассылка подтверждения безопасности и GPS по локальной сети.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 ЗАБЛОКИРОВАН / ПОМОЩЬ</div><div class="macro-desc">Приоритетный SOS + ультразвуковой маяк 18.5 кГц под завалами.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 ЭКСТРЕННОЕ УНИЧТОЖЕНИЕ</div><div class="macro-desc">Мгновенное стирание ключей в RAM при риске изъятия телефона!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. URDU (اردو) -->
+  <div id="lang-ur" class="lang-section" dir="rtl">
+    <div class="card">
+      <h2>📲 ۱. انٹرنیٹ کے بغیر انسٹال کریں</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 ڈیزاسٹر مینجمنٹ ایپ انسٹال کریں (18.7 MB)</a>
+      <p>فائل <code>DisasterManagement-v1.2.0-signed.apk</code> کھولیں اور سیٹنگز میں انسٹال کی اجازت دیں۔</p>
+    </div>
+    <div class="card">
+      <h2>🔘 ۲. ہنگامی بٹن</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 میں محفوظ ہوں (I AM SAFE)</div><div class="macro-desc">قریبی فونز کو باحفاظت ہونے کی اطلاع دیں۔</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 پھنسا ہوا ہوں (TRAPPED)</div><div class="macro-desc">ہنگامی SOS سگنل + ملبے کے نیچے 18.5 کلو ہرٹز الٹراسونک آواز۔</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 ہنگامی صفایا (PANIC PURGE)</div><div class="macro-desc">تلاشی یا ضبطی کے خطرے میں تمام خفیہ ڈیٹا فوری ختم کریں۔</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11. INDONESIAN (Bahasa Indonesia) -->
+  <div id="lang-id" class="lang-section">
+    <div class="card">
+      <h2>📲 1. Pasang di Android (Tanpa Internet)</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Pasang DisasterManagement v1.2.0 (18.7 MB)</a>
+      <p>Buka berkas <code>DisasterManagement-v1.2.0-signed.apk</code> dan izinkan penginstalan di Pengaturan.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Tombol Darurat</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 SAYA AMAN</div><div class="macro-desc">Kirim status aman dan koordinat ke rekan sekitar melalui mesh lokal.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 TERJEBAK / BANTUAN</div><div class="macro-desc">SOS darurat + bunyi ultrasonik 18.5 kHz di bawah reruntuhan.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 HAPUS DARURAT</div><div class="macro-desc">Hancurkan seluruh kunci enkripsi seketika jika ponsel diperiksa!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12. GERMAN (Deutsch) -->
+  <div id="lang-de" class="lang-section">
+    <div class="card">
+      <h2>📲 1. Offline-Installation auf Android</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 DisasterManagement v1.2.0 installieren (18.7 MB)</a>
+      <p>Öffnen Sie <code>DisasterManagement-v1.2.0-signed.apk</code> und erlauben Sie die Installation in den Einstellungen.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Taktische Notfall-Tasten</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 ICH BIN IN SICHERHEIT</div><div class="macro-desc">Sendet verschlüsselte Statusmeldung an das lokale Mesh-Netz.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 EINGESCHLOSSEN / HILFE</div><div class="macro-desc">Höchste SOS-Priorität + 18.5 kHz Ultraschall-Ton für Rettungskräfte.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 NOTFALL-LÖSCHUNG</div><div class="macro-desc">Vernichtet alle Schlüssel sofort bei drohender Beschlagnahme.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 13. JAPANESE (日本語) -->
+  <div id="lang-ja" class="lang-section">
+    <div class="card">
+      <h2>📲 1. 完全オフラインでのインストール手順</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 災害対策アプリをインストール (18.7 MB)</a>
+      <p><code>DisasterManagement-v1.2.0-signed.apk</code> をタップし、設定で「提供元不明のアプリ」を許可してください。</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. 主な緊急ボタン</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 無事を報告 (I AM SAFE)</div><div class="macro-desc">周囲の端末へ暗号化された安否確認と位置情報を送信。</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 閉じ込め / 救助要請</div><div class="macro-desc">最優先SOS＋瓦礫の下から救助隊へ届く18.5 kHz超音波ビーコン。</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 緊急データ消去 (PURGE)</div><div class="macro-desc">検閲や端末没収の恐れがある際、暗号鍵を瞬時に物理消去！</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 14. SWAHILI (Kiswahili) -->
+  <div id="lang-sw" class="lang-section">
+    <div class="card">
+      <h2>📲 1. Sakinisha kwenye Android (Bila Mtandao)</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Pakua DisasterManagement v1.2.0 (18.7 MB)</a>
+      <p>Fungua faili <code>DisasterManagement-v1.2.0-signed.apk</code> kisha washa ruhusa ya "Allow from this source".</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Vitufe vya Dharura</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 NIKO SALAMA</div><div class="macro-desc">Tangaza kuwa uko salama kwa mtandao wa simu za karibu.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 NIMEKWAMA / MSAADA</div><div class="macro-desc">SOS ya dharura + mlio wa ultrasoniki 18.5 kHz kwenye vifusi.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 FUTA KILA KITU</div><div class="macro-desc">Futa faili za siri mara moja simu ikitaka kukaguliwa au kuchukuliwa.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 15. TURKISH (Türkçe) -->
+  <div id="lang-tr" class="lang-section">
+    <div class="card">
+      <h2>📲 1. İnternetsiz Kurulum (Android 10+)</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Afet Yönetimi v1.2.0 Yükle (18.7 MB)</a>
+      <p><code>DisasterManagement-v1.2.0-signed.apk</code> dosyasını açın ve Ayarlar'dan bilinmeyen kaynaklara izin verin.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Acil Durum Butonları</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 GÜVENDEYİM</div><div class="macro-desc">Yakındaki cihazlara konum ve güvende olma durumunu iletir.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 ENKAZ ALTINDA / YARDIM</div><div class="macro-desc">Acil SOS + enkaz altı arama kurtarma için 18.5 kHz ultrasonik sinyal.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 ACİL İMHA</div><div class="macro-desc">Cihaza el konulması riski varsa tüm şifreleme anahtarlarını anında yok eder!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 16. VIETNAMESE (Tiếng Việt) -->
+  <div id="lang-vi" class="lang-section">
+    <div class="card">
+      <h2>📲 1. Cài đặt Ngoại Tuyến trên Android</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Cài đặt DisasterManagement v1.2.0 (18.7 MB)</a>
+      <p>Nhấn vào <code>DisasterManagement-v1.2.0-signed.apk</code> và bật "Cho phép từ nguồn này" trong Cài đặt.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Các Nút Thao Tác Khẩn Cấp</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 TÔI AN TOÀN</div><div class="macro-desc">Gửi tín hiệu an toàn và tọa độ GPS cho mạng lưới xung quanh.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 BỊ MẮC KẸT / CỨU HỘ</div><div class="macro-desc">Báo động SOS + âm siêu thanh 18.5 kHz xuyên đống đổ nát.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 TIÊU HỦY KHẨN CẤP</div><div class="macro-desc">Hủy toàn bộ khóa mã hóa ngay khi điện thoại có nguy cơ bị tịch thu!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 17. KOREAN (한국어) -->
+  <div id="lang-ko" class="lang-section">
+    <div class="card">
+      <h2>📲 1. 안드로이드 오프라인 설치 (인터넷 불필요)</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 재난 대응 앱 설치하기 (18.7 MB)</a>
+      <p><code>DisasterManagement-v1.2.0-signed.apk</code> 파일을 실행하고 설정에서 "이 출처의 앱 허용"을 켭니다.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. 주요 비상 버튼</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 안전 보고 (I AM SAFE)</div><div class="macro-desc">주변 기기에 위치와 안전 상태를 암호화하여 브로드캐스트.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 고립 / 구조 요청</div><div class="macro-desc">최우선 SOS + 잔해 속에서 18.5 kHz 초음파 구조 신호 발신.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 긴급 데이터 파기</div><div class="macro-desc">검문 또는 압수 위험 시 암호화 키를 즉시 파기하고 앱 종료!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 18. PERSIAN (فارسی) -->
+  <div id="lang-fa" class="lang-section" dir="rtl">
+    <div class="card">
+      <h2>📲 ۱. نصب کاملاً آفلاین روی اندروید</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 نصب برنامه مدیریت بحران v1.2.0 (18.7 مگابایت)</a>
+      <p>فایل <code>DisasterManagement-v1.2.0-signed.apk</code> را باز کرده و در تنظیمات گزینه اجازه نصب را فعال کنید.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 ۲. دکمه‌های تاکتیکی اضطراری</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 در امان هستم (I AM SAFE)</div><div class="macro-desc">ارسال وضعیت ایمنی برای شبکه اطراف بدون نیاز به اینترنت.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 گرفتار شده‌ام (TRAPPED)</div><div class="macro-desc">هشدار SOS + سیگنال اولتراسونیک ۱۸.۵ کیلوهرتز زیر آوار.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 پاکسازی اضطراری</div><div class="macro-desc">نابودی فوری کلیدهای رمزنگاری در صورت خطر تفتیش یا توقیف گوشی!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 19. BURMESE (မြန်မာစာ) -->
+  <div id="lang-my" class="lang-section">
+    <div class="card">
+      <h2>📲 ၁။ အန်းဒရွိုက်ဖုန်းများတွင် ထည့်သွင်းနည်း</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 အက်ပ်ကို ဒေါင်းလုဒ်လုပ်ရန် / ထည့်သွင်းရန် (18.7 MB)</a>
+      <p><code>DisasterManagement-v1.2.0-signed.apk</code> ဖိုင်ကို နှိပ်ပြီး Settings တွင် "Allow from this source" ကို ဖွင့်ပါ။</p>
+    </div>
+    <div class="card">
+      <h2>🔘 ၂။ အရေးပေါ် အဓိကခလုတ်များ</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 ကျွန်ုပ် ဘေးကင်းပါသည်</div><div class="macro-desc">မိသားစုနှင့် အဖွဲ့သားများထံ ဘေးကင်းကြောင်း အချက်ပြပေးပို့ခြင်း။</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 အကူအညီလိုသည် / ပိတ်မိနေသည်</div><div class="macro-desc">အရေးပေါ် SOS အချက်ပြလွှင့်ခြင်းနှင့် 18.5 kHz အသံလှိုင်းလွှင့်ခြင်း။</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 အရေးပေါ် အချက်အလက်ဖျက်ဆီးမှု</div><div class="macro-desc">ဖုန်းစစ်ဆေးခံရပါက လျှို့ဝှက်ကုဒ်များနှင့် အချက်အလက်အားလုံးကို ချက်ချင်းဖျက်ဆီးရန်။</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 20. HAITIAN CREOLE (Kreyòl Ayisyen) -->
+  <div id="lang-ht" class="lang-section">
+    <div class="card">
+      <h2>📲 1. Enstale san Entènèt sou Android</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Enstale DisasterManagement v1.2.0 (18.7 MB)</a>
+      <p>Klike sou <code>DisasterManagement-v1.2.0-signed.apk</code> epi limen "Pèmèt sous sa a" nan Paramèt.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Bouton Ijans Taktik</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 MWEN AN SEKIRITE</div><div class="macro-desc">Voye mesaj bay fanmi ak ekip ou pou di w byen.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 MWEN BARE / BEZWEN ÈD</div><div class="macro-desc">Alèt SOS ijan + son ultrasonik 18.5 kHz anba dekonb.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 EFASE TOUT BAGAY</div><div class="macro-desc">Detwi tout kle chifreman imedyatman si yo vle pran telefòn ou!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 21. KRIO (Sierra Leone) -->
+  <div id="lang-krio" class="lang-section">
+    <div class="card">
+      <h2>📲 1. Instol Pan Yu Android Fon</h2>
+      <a href="DisasterManagement-v1.2.0-signed.apk" class="btn-download">📥 Instol DisasterManagement v1.2.0 (18.7 MB)</a>
+      <p>Tɔch di fayl <code>DisasterManagement-v1.2.0-signed.apk</code> na yu fon en tɔn "Allow from this source" na Settings.</p>
+    </div>
+    <div class="card">
+      <h2>🔘 2. Di Bɔtin Dɛn Fɔ Trabul Tɛm</h2>
+      <div class="macro-grid">
+        <div class="macro-item"><div class="macro-title" style="color:#3fb950;">🟢 AH DE SEF</div><div class="macro-desc">Tɛl yu fambul dɛn se yu wel en sef pan di mesh netwok.</div></div>
+        <div class="macro-item"><div class="macro-title" style="color:#f85149;">🔴 AH DE NA TRABUL / EWP MI</div><div class="macro-desc">Sɛn SOS kray + 18.5 kHz sawnd we de go tru dɔti fɔ mek rescue pipul jɛs si yu.</div></div>
+        <div class="macro-item panic-box"><div class="macro-title">🚨 BROK EVRITIN WAN TEM</div><div class="macro-desc">Ires di sikret ki dɛn fɔ tek yu fon we bad pipul wan luk am!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Universal Cryptographic Footer -->
+  <div class="card">
+    <h2>🔐 Cryptographic Checksum (Universal Verification)</h2>
+    <pre>SHA-256: a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+Binary:  DisasterManagement-v1.2.0-signed.apk (Universal Android API 29+)</pre>
+  </div>
+</div>
+
+<script>
+  function changeLanguage(langCode) {
+    var sections = document.querySelectorAll('.lang-section');
+    for (var i = 0; i < sections.length; i++) {
+      sections[i].classList.remove('active');
+    }
+    var target = document.getElementById('lang-' + langCode);
+    if (target) {
+      target.classList.add('active');
+    }
+    try {
+      localStorage.setItem('preferred_emergency_lang', langCode);
+    } catch (e) {}
+  }
+
+  // Restore saved language on load
+  try {
+    var saved = localStorage.getItem('preferred_emergency_lang');
+    if (saved && document.getElementById('lang-' + saved)) {
+      document.getElementById('langDropdown').value = saved;
+      changeLanguage(saved);
+    }
+  } catch (e) {}
+</script>
+</body>
+</html>

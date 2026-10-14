@@ -1,0 +1,54 @@
+================================================================================
+MANUEL DE SECOURS ET D'INSTALLATION - DISASTER MANAGEMENT (FRANÇAIS)
+================================================================================
+Plateforme : Android 10+ (API 29+)
+Fonctionne à 100% hors-ligne, sans carte SIM, sans forfait et sans réseau.
+
+--------------------------------------------------------------------------------
+1. INSTALLATION DIRECTE (SANS INTERNET)
+--------------------------------------------------------------------------------
+1. Ouvrez le fichier : DisasterManagement-v1.2.0-signed.apk
+2. Appuyez sur le fichier pour lancer l'installation.
+3. Si Android affiche « Bloqué par sécurité / Source inconnue » :
+   - Allez dans « Paramètres »
+   - Activez « Autoriser cette source »
+   - Revenez en arrière et appuyez sur « Installer »
+4. L'icône de bouclier tactique apparaîtra sur votre écran d'accueil.
+
+--------------------------------------------------------------------------------
+2. PARTAGE HORS-LIGNE ENTRE TÉLÉPHONES
+--------------------------------------------------------------------------------
+Méthode A (Point d'accès local) :
+1. Dans l'application, appuyez sur « Share App Offline ».
+2. Le téléphone active un point Wi-Fi local et affiche un QR Code.
+3. Le destinataire se connecte au Wi-Fi et scanne le QR code avec son appareil photo pour télécharger l'APK instantanément.
+
+Méthode B :
+Envoyez le fichier APK par Bluetooth, Quick Share ou clé USB OTG / Carte MicroSD.
+
+--------------------------------------------------------------------------------
+3. TOUCHES D'ACTION D'URGENCE
+--------------------------------------------------------------------------------
+[VERT]   JE SUIS EN SÉCURITÉ (I AM SAFE) :
+         Diffusion d'un message d'état avec coordonnées GPS sur le réseau local.
+
+[ROUGE]  PIÉGÉ / BESOIN D'AIDE (TRAPPED / AID) :
+         SOS haute priorité + émission d'une balise sonore ultrasonique 18.5 kHz pour guider les secours sous les décombres.
+
+[JAUNE]  BESOIN DE SECOURS (NEED SUPPLIES) :
+         Demande directe en 1 geste : Eau potable, Vivres, Médicaments, Abris, Énergie.
+
+[ALERTE] SIGNALER UN DANGER (REPORT DANGER) :
+         Alerte sur câbles électriques rompus, fuites de gaz, incendies, inondations.
+
+[MICRO]  PUSH-TO-TALK :
+         Notes vocales chiffrées de bout en bout découpées en paquets inviolables de 4 Ko.
+
+[DANGER] PURGE D'URGENCE (PANIC PURGE) :
+         DÉTRUIT INSTANTANÉMENT TOUTES LES CLÉS DE CHIFFREMENT EN MÉMOIRE RAM.
+         À utiliser impérativement en cas de contrôle armé ou risque de saisie !
+
+--------------------------------------------------------------------------------
+VÉRIFICATION CRYPTOGRAPHIQUE (SHA-256) :
+a270f475fa57b36f93fd62ae93993f3f4b7dfdfd3191af039e5d03afedf30d05
+================================================================================

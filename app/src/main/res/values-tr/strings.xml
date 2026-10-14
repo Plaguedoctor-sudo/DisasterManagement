@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Afet Yönetimi</string>
+    <string name="service_notification_title">Sivil Afet Telemetri Servisi</string>
+    <string name="service_notification_desc">Yardımcı sensörler ve yerel mesh paketleri izleniyor.</string>
+</resources>
